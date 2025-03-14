@@ -2,13 +2,13 @@
   "name": "vscode-symfony-ux-twig-component",
   "displayName": "VSCode Symfony UX Twig Component",
   "description": "References, highlights, and formats Twig components for Symfony UX",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/vscode-symfony-ux-twig-component.git"
+    "url": "https://github.com/SandBlock/vscode-symfony-ux-twig-component.git"
   },
   "engines": {
-    "vscode": "^1.98.0"
+    "vscode": "^1.96.0"
   },
   "categories": [
     "Programming Languages",
@@ -44,7 +44,48 @@
         "uiTheme": "vs-dark",
         "path": "./themes/twig-component-color-theme.json"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Symfony UX Twig Component",
+      "properties": {
+        "symfonyUxTwigComponent.phpBasePaths": {
+          "type": "array",
+          "default": [
+            "src/Content",
+            "src/Portal/Shared",
+            "src"
+          ],
+          "description": "Base paths for PHP component files. The extension will match these with the namespace in the component tag."
+        },
+        "symfonyUxTwigComponent.phpComponentPaths": {
+          "type": "array",
+          "default": [
+            "Twig/Component/${namespace}/${componentName}.php",
+            "Components/${namespace}/${componentName}.php",
+            "Twig/Components/${namespace}/${componentName}.php"
+          ],
+          "description": "Relative paths (from base paths) to look for PHP component files. Use ${namespace} and ${componentName} as placeholders."
+        },
+        "symfonyUxTwigComponent.twigBasePaths": {
+          "type": "array",
+          "default": [
+            "templates/content",
+            "templates/portal/shared",
+            "templates"
+          ],
+          "description": "Base paths for Twig template files. The extension will match these with the namespace in the component tag."
+        },
+        "symfonyUxTwigComponent.twigTemplatePaths": {
+          "type": "array",
+          "default": [
+            "components/${namespace}/${componentName}.html.twig",
+            "twig/components/${namespace}/${componentName}.html.twig",
+            "${namespace}/${componentName}.html.twig"
+          ],
+          "description": "Relative paths (from base paths) to look for Twig template files. Use ${namespace} and ${componentName} as placeholders."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
@@ -57,7 +98,7 @@
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
-    "@types/vscode": "^1.98.0",
+    "@types/vscode": "^1.96.0",
     "@typescript-eslint/eslint-plugin": "^8.25.0",
     "@typescript-eslint/parser": "^8.25.0",
     "@vscode/test-cli": "^0.0.10",
