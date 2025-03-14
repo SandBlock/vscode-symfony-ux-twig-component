@@ -2,7 +2,7 @@
   "name": "vscode-symfony-ux-twig-component",
   "displayName": "VSCode Symfony UX Twig Component",
   "description": "References, highlights, and formats Twig components for Symfony UX",
-  "version": "0.0.2",
+  "version": "0.0.6",
   "repository": {
     "type": "git",
     "url": "https://github.com/SandBlock/vscode-symfony-ux-twig-component.git"
@@ -29,6 +29,21 @@
         "configuration": "./language-configuration.json"
       }
     ],
+    "commands": [
+      {
+        "command": "symfonyUxTwigComponent.navigateToComponent",
+        "title": "Navigate to Twig Component"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "editorLangId == twig",
+          "command": "symfonyUxTwigComponent.navigateToComponent",
+          "group": "navigation"
+        }
+      ]
+    },
     "grammars": [
       {
         "injectTo": [

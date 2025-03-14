@@ -21,6 +21,15 @@ Example:
 
 Click on either the namespace part or the component name in a Twig component tag to navigate to the corresponding PHP class or Twig template file. For example, in `<twig:Content:Menu:MenuItemCard />`, you can click on either `Content:Menu` or `MenuItemCard` to navigate.
 
+When both the component file and template file are found, a quick pick menu will appear allowing you to:
+- Open the component file
+- Open the template file
+- Open both files in separate tabs
+
+If only one file is found (either the component or template), it will open directly without showing the menu.
+
+You can also right-click on a component tag and select "Navigate to Twig Component" from the context menu.
+
 The extension will search for the component in the configured locations (see Extension Settings).
 
 ### Formatting
@@ -146,6 +155,31 @@ Then, when you use `<twig:Content:Menu:MenuItemCard />`:
 - The extension may not detect all possible locations of Twig component files by default. Use the configuration settings to add custom paths.
 
 ## Release Notes
+
+### 0.0.6
+
+- Significantly improved template file detection for complex directory structures
+- Added multiple fallback strategies for finding template files
+- Enhanced namespace parsing with better support for multi-level namespaces
+- Added more detailed logging for troubleshooting path resolution issues
+
+### 0.0.5
+
+- Fixed quick pick menu behavior: now only appears after clicking on component name (not on hover with Alt)
+- Added context menu option for navigating to Twig components
+- Improved menu positioning to appear closer to the cursor
+- Enhanced user experience by showing all available options (component file, template file, or both)
+
+### 0.0.4
+
+- Improved quick pick menu to appear at the mouse position
+- Enhanced namespace parsing for better template file navigation
+- Added support for more complex directory structures
+
+### 0.0.3
+
+- Added quick pick menu when both component and template files are found
+- User can now choose to open the component file, template file, or both files
 
 ### 0.0.2
 
