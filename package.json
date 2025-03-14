@@ -1,0 +1,69 @@
+{
+  "name": "vscode-symfony-ux-twig-component",
+  "displayName": "VSCode Symfony UX Twig Component",
+  "description": "References, highlights, and formats Twig components for Symfony UX",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/vscode-symfony-ux-twig-component.git"
+  },
+  "engines": {
+    "vscode": "^1.98.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Formatters",
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:twig"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "twig",
+        "extensions": [
+          ".twig"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "injectTo": [
+          "text.html.twig"
+        ],
+        "scopeName": "text.html.twig-component",
+        "path": "./syntaxes/twig-component.tmLanguage.json"
+      }
+    ],
+    "themes": [
+      {
+        "label": "Symfony UX Twig Component Theme",
+        "uiTheme": "vs-dark",
+        "path": "./themes/twig-component-color-theme.json"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.98.0",
+    "@typescript-eslint/eslint-plugin": "^8.25.0",
+    "@typescript-eslint/parser": "^8.25.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^3.2.2",
+    "eslint": "^9.21.0",
+    "typescript": "^5.7.3"
+  }
+}

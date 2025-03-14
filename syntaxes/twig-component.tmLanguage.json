@@ -1,0 +1,65 @@
+{
+  "name": "Symfony UX Twig Component",
+  "scopeName": "text.html.twig-component",
+  "fileTypes": ["twig"],
+  "injectionSelector": "L:text.html.twig",
+  "patterns": [
+    {
+      "include": "#twig-component-tag"
+    }
+  ],
+  "repository": {
+    "twig-component-tag": {
+      "name": "meta.tag.twig-component",
+      "begin": "(<)(twig)(:)([\\w\\-]+)(:)([\\w\\-]+)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.html" },
+        "2": { "name": "entity.name.tag.twig-component.keyword.purple" },
+        "3": { "name": "punctuation.separator.namespace.twig-component" },
+        "4": { "name": "entity.name.tag.twig-component.namespace" },
+        "5": { "name": "punctuation.separator.namespace.twig-component" },
+        "6": { "name": "entity.name.tag.twig-component.name" }
+      },
+      "end": "(>)|(/?>)",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.end.html" },
+        "2": { "name": "punctuation.definition.tag.end.html" }
+      },
+      "patterns": [
+        {
+          "include": "#tag-attributes"
+        }
+      ]
+    },
+    "tag-attributes": {
+      "patterns": [
+        {
+          "name": "entity.other.attribute-name.twig-component",
+          "match": "\\b([a-zA-Z0-9_-]+)\\b"
+        },
+        {
+          "name": "string.quoted.double.twig-component",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.twig-component",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.twig-component",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.twig-component",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    }
+  }
+} 

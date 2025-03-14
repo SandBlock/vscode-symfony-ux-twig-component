@@ -1,0 +1,25 @@
+{
+  "name": "Symfony UX Twig Component Theme",
+  "type": "dark",
+  "colors": {},
+  "tokenColors": [
+    {
+      "scope": "entity.name.tag.twig-component.keyword.purple",
+      "settings": {
+        "foreground": "#C678DD"
+      }
+    },
+    {
+      "scope": "entity.name.tag.twig-component.namespace",
+      "settings": {
+        "foreground": "#61AFEF"
+      }
+    },
+    {
+      "scope": "entity.name.tag.twig-component.name",
+      "settings": {
+        "foreground": "#E06C75"
+      }
+    }
+  ]
+} 
