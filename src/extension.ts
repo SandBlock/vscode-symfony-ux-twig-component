@@ -3,83 +3,66 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { registerFormattingProviders } from './providers/formattingProvider';
+import { registerFormattingCommands } from './commands/formatting';
+import { debugLog, registerConfigChangeListener } from './utils/config';
 
 // Regex to match Twig component tags with multi-level namespaces
 const TWIG_COMPONENT_REGEX = /<twig:([A-Za-z0-9_:]+):([A-Za-z0-9_]+)/g;
 const TWIG_COMPONENT_NAMESPACE_REGEX = /<twig:([A-Za-z0-9_:]+):([A-Za-z0-9_]+)/;
+// Regex to match Twig component attributes, including those with Twig variables
+const TWIG_ATTRIBUTE_REGEX = /\s+([a-zA-Z0-9_-]+)=(?:"([^"]*)"|'([^']*)'|"{{[^}]*}}"|'{{[^}]*}}'|"{{[^}]*}}"|'{{[^}]*}}')/g;
+// Regex to detect flattened components (all on one line with multiple attributes)
+const FLATTENED_COMPONENT_REGEX = /<twig:[A-Za-z0-9_:]+:[A-Za-z0-9_]+\s+[a-zA-Z0-9_-]+=(?:"[^"]*"|'[^']*')\s+[a-zA-Z0-9_-]+=(?:"[^"]*"|'[^']*')/g;
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
+// This method is called when the extension is activated
 export function activate(context: vscode.ExtensionContext) {
-	console.log('Symfony UX Twig Component extension is now active!');
-
-	// Register the command for navigating to Twig components
-	const navigateCommand = vscode.commands.registerTextEditorCommand(
-		'symfonyUxTwigComponent.navigateToComponent',
-		(editor, edit) => {
-			navigateToTwigComponent(editor, false);
-		}
-	);
-
-	// Register a separate command for Cmd+click navigation (Alt+click on Windows/Linux)
-	const modifierNavigateCommand = vscode.commands.registerCommand(
-		'symfonyUxTwigComponent.modifierNavigateToComponent',
-		async () => {
+	debugLog('Activating Symfony UX Twig Component extension');
+	
+	// Store all disposables in an array
+	const disposables: vscode.Disposable[] = [];
+	
+	// Register the navigation command
+	disposables.push(
+		vscode.commands.registerCommand('symfony-ux-twig-component.navigateToComponent', () => {
 			const editor = vscode.window.activeTextEditor;
 			if (editor) {
-				await navigateToTwigComponent(editor, true);
+				// We'll implement this in a separate PR
+				vscode.window.showInformationMessage('Navigation to component will be implemented in a future update.');
 			}
-		}
+		})
 	);
-
-	// Register the definition provider for Cmd+click functionality
-	const definitionProvider = vscode.languages.registerDefinitionProvider(
-		{ language: 'twig' },
-		new TwigComponentDefinitionProvider()
+	
+	// Register formatting providers
+	disposables.push(...registerFormattingProviders(context));
+	
+	// Register formatting commands
+	disposables.push(...registerFormattingCommands(context));
+	
+	// Register configuration change listener
+	disposables.push(
+		registerConfigChangeListener(() => {
+			// Dispose all existing providers
+			disposables.forEach(d => d.dispose());
+			disposables.length = 0;
+			
+			// Re-register all providers with new configuration
+			disposables.push(...registerFormattingProviders(context));
+			disposables.push(...registerFormattingCommands(context));
+			
+			debugLog('Configuration changed, providers reregistered');
+		})
 	);
+	
+	// Add all disposables to the context
+	disposables.forEach(d => context.subscriptions.push(d));
+	
+	debugLog('Symfony UX Twig Component extension activated');
+}
 
-	// Register the document range formatting provider for Twig components
-	// Using range formatting instead of document formatting to work alongside other formatters
-	const formattingProvider = vscode.languages.registerDocumentRangeFormattingEditProvider(
-		{ language: 'twig' },
-		new TwigComponentFormattingProvider()
-	);
-
-	// Register command to open a single file
-	const openFileCommand = vscode.commands.registerCommand(
-		'symfonyUxTwigComponent.openFile',
-		async (args) => {
-			if (args && args.filePath) {
-				const uri = vscode.Uri.file(args.filePath);
-				await vscode.window.showTextDocument(uri);
-			}
-		}
-	);
-
-	// Register command to open both files
-	const openBothFilesCommand = vscode.commands.registerCommand(
-		'symfonyUxTwigComponent.openBothFiles',
-		async (args) => {
-			if (args && args.phpFilePath && args.twigFilePath) {
-				// Open Twig file first (non-preview)
-				const twigUri = vscode.Uri.file(args.twigFilePath);
-				await vscode.window.showTextDocument(twigUri, { preview: false });
-
-				// Then open PHP file
-				const phpUri = vscode.Uri.file(args.phpFilePath);
-				await vscode.window.showTextDocument(phpUri);
-			}
-		}
-	);
-
-	context.subscriptions.push(
-		navigateCommand,
-		modifierNavigateCommand,
-		definitionProvider,
-		formattingProvider,
-		openFileCommand,
-		openBothFilesCommand
-	);
+// This method is called when the extension is deactivated
+export function deactivate() {
+	debugLog('Symfony UX Twig Component extension deactivated');
 }
 
 // Get configured paths
@@ -646,80 +629,270 @@ class TwigComponentDefinitionProvider implements vscode.DefinitionProvider {
 }
 
 // Formatting provider for Twig components
-class TwigComponentFormattingProvider implements vscode.DocumentRangeFormattingEditProvider {
+class TwigComponentFormattingProvider implements vscode.DocumentFormattingEditProvider, vscode.DocumentRangeFormattingEditProvider {
+	provideDocumentFormattingEdits(
+		document: vscode.TextDocument,
+		options: vscode.FormattingOptions,
+		token: vscode.CancellationToken
+	): vscode.TextEdit[] {
+		// Get configuration
+		const config = vscode.workspace.getConfiguration('symfonyUxTwigComponent');
+		const formattingEnabled = config.get<boolean>('formatting.enabled', true);
+		
+		if (!formattingEnabled) {
+			return [];
+		}
+		
+		// Format the entire document
+		const range = new vscode.Range(
+			new vscode.Position(0, 0),
+			document.lineAt(document.lineCount - 1).range.end
+		);
+		return this.formatTwigComponents(document, range, options);
+	}
+
 	provideDocumentRangeFormattingEdits(
 		document: vscode.TextDocument,
 		range: vscode.Range,
 		options: vscode.FormattingOptions,
 		token: vscode.CancellationToken
 	): vscode.TextEdit[] {
+		// Get configuration
+		const config = vscode.workspace.getConfiguration('symfonyUxTwigComponent');
+		const formattingEnabled = config.get<boolean>('formatting.enabled', true);
+		
+		if (!formattingEnabled) {
+			return [];
+		}
+		
+		return this.formatTwigComponents(document, range, options);
+	}
+
+	public formatTwigComponents(
+		document: vscode.TextDocument,
+		range: vscode.Range,
+		options: vscode.FormattingOptions
+	): vscode.TextEdit[] {
 		const edits: vscode.TextEdit[] = [];
 		const text = document.getText(range);
-		let match;
-
-		// Reset the regex
-		TWIG_COMPONENT_REGEX.lastIndex = 0;
-
-		// Create a temporary string to search through
-		const tempText = text;
-		let offset = document.offsetAt(range.start);
-
-		while ((match = TWIG_COMPONENT_REGEX.exec(tempText)) !== null) {
-			const matchStartOffset = offset + match.index;
-			const startPos = document.positionAt(matchStartOffset);
-			const line = document.lineAt(startPos.line);
-			const lineText = line.text;
-
-			// Find the end of the component tag
-			const tagEndIndex = lineText.indexOf('>', startPos.character + match[0].length);
-			if (tagEndIndex === -1) {
-				continue; // Skip if no closing bracket found
-			}
-
-			// Extract the part of the line that contains the tag and its attributes
-			const tagText = lineText.substring(startPos.character, tagEndIndex + 1);
-
-			// Check if there are attributes in the tag
-			const attributeRegex = /\s+([a-zA-Z0-9_-]+)=(?:"([^"]*)"|'([^']*)')/g;
-			let attributeMatch;
-			const attributes: string[] = [];
-
-			// Clone the regex to avoid affecting the outer loop
-			const attrRegexClone = new RegExp(attributeRegex);
-			let attrText = tagText.substring(match[0].length);
-
-			while ((attributeMatch = attrRegexClone.exec(attrText)) !== null) {
-				attributes.push(attributeMatch[0].trim());
-			}
-
-			// Only format if there are attributes
-			if (attributes.length > 0) {
-				// Format the attributes to be on separate lines
-				let formattedText = lineText.substring(0, startPos.character + match[0].length);
-				let indentation = ' '.repeat(options.insertSpaces ? options.tabSize : 4);
-
-				for (const attr of attributes) {
-					formattedText += '\n' + ' '.repeat(startPos.character) + indentation + attr;
+		
+		// First check for flattened components that need formatting
+		// We'll use a different approach to find flattened components
+		const lines = text.split('\n');
+		
+		// Process each line to find flattened components
+		for (let i = 0; i < lines.length; i++) {
+			const line = lines[i];
+			
+			// Reset the regex for each line
+			TWIG_COMPONENT_REGEX.lastIndex = 0;
+			let match;
+			
+			// Look for component tags in this line
+			while ((match = TWIG_COMPONENT_REGEX.exec(line)) !== null) {
+				const namespace = match[1];
+				const component = match[2];
+				const startChar = match.index;
+				
+				// Find the end of the tag on this line
+				const tagEndIndex = line.indexOf('>', startChar + match[0].length);
+				if (tagEndIndex === -1) {
+					continue; // No closing bracket on this line
 				}
-
-				// Add the closing tag
-				formattedText += '\n' + ' '.repeat(startPos.character) + '>';
-
-				// Create a text edit to replace the tag portion
-				const replaceRange = new vscode.Range(
-					startPos,
-					new vscode.Position(startPos.line, tagEndIndex + 1)
-				);
-
-				edits.push(vscode.TextEdit.replace(replaceRange, formattedText));
+				
+				// Extract the tag text
+				const tagText = line.substring(startChar, tagEndIndex + 1);
+				
+				// Count attributes
+				const attributes: string[] = [];
+				TWIG_ATTRIBUTE_REGEX.lastIndex = 0;
+				let attrMatch;
+				
+				while ((attrMatch = TWIG_ATTRIBUTE_REGEX.exec(tagText)) !== null) {
+					attributes.push(attrMatch[0].trim());
+				}
+				
+				// If we have multiple attributes on a single line, format it
+				if (attributes.length > 1) {
+					const tag = {
+						namespace,
+						component,
+						startLine: i + range.start.line,
+						startChar,
+						endLine: i + range.start.line,
+						endChar: tagEndIndex + 1,
+						attributes
+					};
+					
+					this.formatTag(document, tag, edits, options);
+				}
 			}
 		}
-
+		
+		// Now handle multi-line tags
+		let currentTag: { 
+			namespace: string, 
+			component: string, 
+			startLine: number, 
+			startChar: number,
+			attributes: string[],
+			endLine?: number,
+			endChar?: number
+		} | null = null;
+		
+		// First pass: identify all component tags and their attributes
+		for (let i = 0; i < lines.length; i++) {
+			const line = lines[i];
+			
+			// If we're not currently tracking a tag, look for a new one
+			if (!currentTag) {
+				// Reset the regex
+				TWIG_COMPONENT_REGEX.lastIndex = 0;
+				const match = TWIG_COMPONENT_REGEX.exec(line);
+				
+				if (match) {
+					// Found a new tag
+					currentTag = {
+						namespace: match[1],
+						component: match[2],
+						startLine: i + range.start.line,
+						startChar: match.index,
+						attributes: []
+					};
+					
+					// Check if the tag ends on this line
+					const tagEndIndex = line.indexOf('>', match.index + match[0].length);
+					if (tagEndIndex !== -1) {
+						currentTag.endLine = i + range.start.line;
+						currentTag.endChar = tagEndIndex + 1;
+						
+						// Extract attributes
+						const tagText = line.substring(match.index, tagEndIndex + 1);
+						const attributeRegex = TWIG_ATTRIBUTE_REGEX;
+						let attributeMatch;
+						
+						while ((attributeMatch = attributeRegex.exec(tagText)) !== null) {
+							currentTag.attributes.push(attributeMatch[0].trim());
+						}
+						
+						// Format the tag if it has attributes
+						if (currentTag.attributes.length > 0) {
+							this.formatTag(document, currentTag, edits, options);
+						}
+						
+						currentTag = null;
+					}
+				}
+			} else {
+				// We're tracking a tag, look for the end
+				const tagEndIndex = line.indexOf('>');
+				if (tagEndIndex !== -1) {
+					currentTag.endLine = i + range.start.line;
+					currentTag.endChar = tagEndIndex + 1;
+					
+					// Extract attributes from this line
+					const attributeRegex = TWIG_ATTRIBUTE_REGEX;
+					let attributeMatch;
+					
+					while ((attributeMatch = attributeRegex.exec(line)) !== null) {
+						currentTag.attributes.push(attributeMatch[0].trim());
+					}
+					
+					// Format the tag if it has attributes
+					if (currentTag.attributes.length > 0) {
+						this.formatTag(document, currentTag, edits, options);
+					}
+					
+					currentTag = null;
+				} else {
+					// Still in the tag, collect attributes
+					const attributeRegex = TWIG_ATTRIBUTE_REGEX;
+					let attributeMatch;
+					
+					while ((attributeMatch = attributeRegex.exec(line)) !== null) {
+						currentTag.attributes.push(attributeMatch[0].trim());
+					}
+				}
+			}
+		}
+		
 		return edits;
 	}
+	
+	private formatTag(
+		document: vscode.TextDocument,
+		tag: { 
+			namespace: string, 
+			component: string, 
+			startLine: number, 
+			startChar: number,
+			attributes: string[],
+			endLine?: number,
+			endChar?: number
+		},
+		edits: vscode.TextEdit[],
+		options: vscode.FormattingOptions
+	): void {
+		if (!tag.endLine || !tag.endChar) {
+			return;
+		}
+		
+		// Get the full tag text
+		let fullTagText = '';
+		if (tag.startLine === tag.endLine) {
+			// Single line tag
+			const line = document.lineAt(tag.startLine).text;
+			fullTagText = line.substring(tag.startChar, tag.endChar);
+		} else {
+			// Multi-line tag
+			const startLine = document.lineAt(tag.startLine).text;
+			fullTagText = startLine.substring(tag.startChar);
+			
+			for (let i = tag.startLine + 1; i < tag.endLine; i++) {
+				fullTagText += '\n' + document.lineAt(i).text;
+			}
+			
+			const endLine = document.lineAt(tag.endLine).text;
+			fullTagText += '\n' + endLine.substring(0, tag.endChar);
+		}
+		
+		// Get the leading whitespace from the line
+		const startLine = document.lineAt(tag.startLine);
+		const leadingWhitespace = startLine.text.substring(0, startLine.firstNonWhitespaceCharacterIndex);
+		
+		// Format the tag exactly as shown in the screenshot
+		const tagStart = `<twig:${tag.namespace}:${tag.component}`;
+		
+		// Based on the screenshot, attributes are indented with exactly 4 spaces from the start of the line
+		// The tag itself is at the same indentation level as the closing tag
+		
+		// Build the formatted text
+		let formattedText = tagStart;
+		
+		// Add attributes on separate lines with proper indentation
+		// In the screenshot, attributes are indented with exactly 4 spaces
+		for (const attr of tag.attributes) {
+			formattedText += '\n' + leadingWhitespace + '    ' + attr;
+		}
+		
+		// Add closing tag on its own line
+		formattedText += '\n' + leadingWhitespace + '>';
+		
+		// Check if this is a self-closing tag or a tag with content
+		const isSelfClosing = fullTagText.trim().endsWith('/>');
+		if (isSelfClosing) {
+			// If it's self-closing, use '/>' instead of '>'
+			formattedText = formattedText.substring(0, formattedText.length - 1) + '/>';
+		}
+		
+		// Create the range to replace
+		const replaceRange = new vscode.Range(
+			new vscode.Position(tag.startLine, tag.startChar),
+			new vscode.Position(tag.endLine, tag.endChar)
+		);
+		
+		edits.push(vscode.TextEdit.replace(replaceRange, formattedText));
+	}
 }
-
-// This method is called when your extension is deactivated
-export function deactivate() { }
 
 

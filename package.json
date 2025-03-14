@@ -31,21 +31,17 @@
     ],
     "commands": [
       {
-        "command": "symfonyUxTwigComponent.navigateToComponent",
+        "command": "symfony-ux-twig-component.navigateToComponent",
         "title": "Navigate to Twig Component"
       },
       {
-        "command": "symfonyUxTwigComponent.openFile",
-        "title": "Open Twig Component File"
-      },
-      {
-        "command": "symfonyUxTwigComponent.openBothFiles",
-        "title": "Open Both Twig Component Files"
+        "command": "symfony-ux-twig-component.formatTwigComponents",
+        "title": "Format Twig Components in Document"
       }
     ],
     "keybindings": [
       {
-        "command": "symfonyUxTwigComponent.modifierNavigateToComponent",
+        "command": "symfony-ux-twig-component.navigateToComponent",
         "key": "cmd+click",
         "mac": "cmd+click",
         "win": "ctrl+click",
@@ -57,13 +53,13 @@
       "editor/context": [
         {
           "when": "editorLangId == twig",
-          "command": "symfonyUxTwigComponent.navigateToComponent",
+          "command": "symfony-ux-twig-component.navigateToComponent",
           "group": "navigation"
         },
         {
           "when": "editorLangId == twig",
-          "command": "symfonyUxTwigComponent.modifierNavigateToComponent",
-          "group": "navigation"
+          "command": "symfony-ux-twig-component.formatTwigComponents",
+          "group": "1_modification"
         }
       ]
     },
@@ -86,54 +82,39 @@
     "configuration": {
       "title": "Symfony UX Twig Component",
       "properties": {
-        "symfonyUxTwigComponent.phpBasePaths": {
-          "type": "array",
-          "default": [
-            "src"
-          ],
-          "description": "Base paths for PHP component files. The extension will match these with the namespace in the component tag."
+        "symfony-ux-twig-component.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable the Twig component extension."
         },
-        "symfonyUxTwigComponent.phpComponentPaths": {
-          "type": "array",
-          "default": [
-            "Twig/Component/${namespace}/${componentName}.php",
-            "Components/${namespace}/${componentName}.php",
-            "Twig/Components/${namespace}/${componentName}.php"
-          ],
-          "description": "Relative paths (from base paths) to look for PHP component files. Use ${namespace} and ${componentName} as placeholders."
+        "symfony-ux-twig-component.formattingStyle": {
+          "type": "string",
+          "enum": ["multiline", "singleLine"],
+          "default": "multiline",
+          "description": "The formatting style to use for Twig components. 'multiline' puts attributes on separate lines, 'singleLine' keeps everything on one line."
         },
-        "symfonyUxTwigComponent.twigBasePaths": {
+        "symfony-ux-twig-component.componentPaths": {
           "type": "array",
           "default": [
-            "templates"
+            "src/Components",
+            "templates/components"
           ],
-          "description": "Base paths for Twig template files. The extension will match these with the namespace in the component tag."
+          "description": "Base paths for component files. The extension will search for components in these directories."
         },
-        "symfonyUxTwigComponent.twigTemplatePaths": {
-          "type": "array",
-          "default": [
-            "components/${namespace}/${componentName}.html.twig",
-            "twig/components/${namespace}/${componentName}.html.twig",
-            "${namespace}/${componentName}.html.twig",
-            "components/${namespace}/${componentName}.html.twig"
-          ],
-          "description": "Relative paths (from base paths) to look for Twig template files. Use ${namespace} and ${componentName} as placeholders."
+        "symfony-ux-twig-component.debug": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable debug logging for the extension."
         },
-        "symfonyUxTwigComponent.excludedDirectoryNames": {
-          "type": "array",
-          "default": [
-            "src",
-            "templates",
-            "components"
-          ],
-          "description": "Directory names to exclude when parsing namespaces from paths. These are typically infrastructure directories that don't represent logical namespaces."
+        "symfony-ux-twig-component.runLast": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run the formatter last, after other formatters have run. This helps prevent other formatters from overriding the Twig component formatting."
         },
-        "symfonyUxTwigComponent.fallbackTemplateDirs": {
-          "type": "array",
-          "default": [
-            "templates"
-          ],
-          "description": "Fallback template directories to search when a template file can't be found using the standard paths."
+        "symfony-ux-twig-component.timeout": {
+          "type": "number",
+          "default": 300,
+          "description": "Timeout in milliseconds to wait before running the formatter after a document change or save."
         }
       }
     }
