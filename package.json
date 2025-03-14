@@ -94,12 +94,108 @@
           "description": "The formatting style to use for Twig components. 'multiline' puts attributes on separate lines, 'singleLine' keeps everything on one line."
         },
         "symfony-ux-twig-component.componentPaths": {
-          "type": "array",
+          "type": ["array", "object"],
           "default": [
             "src/Components",
             "templates/components"
           ],
-          "description": "Base paths for component files. The extension will search for components in these directories."
+          "description": "Configuration for component paths. Can be an array of base paths or an object with detailed configuration.",
+          "properties": {
+            "phpBasePaths": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": ["src"],
+              "description": "Base paths for PHP component files."
+            },
+            "phpComponentPaths": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [
+                "Twig/Component/${namespace}/${componentName}.php",
+                "Components/${namespace}/${componentName}.php",
+                "Twig/Components/${namespace}/${componentName}.php"
+              ],
+              "description": "Path patterns for PHP component files."
+            },
+            "twigBasePaths": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": ["templates"],
+              "description": "Base paths for Twig template files."
+            },
+            "twigTemplatePaths": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [
+                "components/${namespace}/${componentName}.html.twig",
+                "twig/components/${namespace}/${componentName}.html.twig",
+                "${namespace}/${componentName}.html.twig"
+              ],
+              "description": "Path patterns for Twig template files."
+            },
+            "excludedDirectoryNames": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": ["src", "templates", "components"],
+              "description": "Directory names to exclude when parsing namespaces."
+            },
+            "fallbackTemplateDirs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": ["templates"],
+              "description": "Fallback template directories to search in when no template is found using the standard patterns."
+            }
+          }
+        },
+        "symfony-ux-twig-component.phpBasePaths": {
+          "type": "array",
+          "default": ["src"],
+          "description": "Base paths for PHP component files. The extension will search for PHP component files in these directories."
+        },
+        "symfony-ux-twig-component.phpComponentPaths": {
+          "type": "array",
+          "default": [
+            "Twig/Component/${namespace}/${componentName}.php",
+            "Components/${namespace}/${componentName}.php",
+            "Twig/Components/${namespace}/${componentName}.php"
+          ],
+          "description": "Path patterns for PHP component files. The extension will search for PHP component files using these patterns."
+        },
+        "symfony-ux-twig-component.twigBasePaths": {
+          "type": "array",
+          "default": ["templates"],
+          "description": "Base paths for Twig template files. The extension will search for Twig template files in these directories."
+        },
+        "symfony-ux-twig-component.twigTemplatePaths": {
+          "type": "array",
+          "default": [
+            "components/${namespace}/${componentName}.html.twig",
+            "twig/components/${namespace}/${componentName}.html.twig",
+            "${namespace}/${componentName}.html.twig"
+          ],
+          "description": "Path patterns for Twig template files. The extension will search for Twig template files using these patterns."
+        },
+        "symfony-ux-twig-component.excludedDirectoryNames": {
+          "type": "array",
+          "default": ["src", "templates", "components"],
+          "description": "Directory names to exclude when parsing namespaces."
+        },
+        "symfony-ux-twig-component.fallbackTemplateDirs": {
+          "type": "array",
+          "default": ["templates"],
+          "description": "Fallback template directories to search in when no template is found using the standard patterns."
         },
         "symfony-ux-twig-component.debug": {
           "type": "boolean",
@@ -115,6 +211,16 @@
           "type": "number",
           "default": 300,
           "description": "Timeout in milliseconds to wait before running the formatter after a document change or save."
+        },
+        "symfony-ux-twig-component.maxLineLength": {
+          "type": "number",
+          "default": 120,
+          "description": "Maximum line length for single-line components. Components with a single attribute will be kept on one line if the total length is less than this value."
+        },
+        "symfony-ux-twig-component.minAttributesMultiline": {
+          "type": "number",
+          "default": 2,
+          "description": "Minimum number of attributes required to format a component with multiple lines. Components with fewer attributes will be kept on one line if the total length is less than maxLineLength."
         }
       }
     }

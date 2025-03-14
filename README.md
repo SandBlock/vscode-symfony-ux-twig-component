@@ -28,14 +28,34 @@ The extension provides syntax highlighting for Twig components, making it easier
 
 ## Configuration
 
-The extension can be configured through the VS Code settings. The following settings are available:
+The extension provides the following configuration options:
 
 - `symfony-ux-twig-component.enabled`: Enable or disable the Twig component extension.
-- `symfony-ux-twig-component.formattingStyle`: The formatting style to use for Twig components. Options are `multiline` (default) or `singleLine`.
+- `symfony-ux-twig-component.formattingStyle`: The formatting style to use for Twig components. 'multiline' puts attributes on separate lines, 'singleLine' keeps everything on one line.
 - `symfony-ux-twig-component.componentPaths`: Base paths for component files. The extension will search for components in these directories.
 - `symfony-ux-twig-component.debug`: Enable debug logging for the extension.
 - `symfony-ux-twig-component.runLast`: Run the formatter last, after other formatters have run. This helps prevent other formatters from overriding the Twig component formatting.
 - `symfony-ux-twig-component.timeout`: Timeout in milliseconds to wait before running the formatter after a document change or save.
+- `symfony-ux-twig-component.maxLineLength`: Maximum line length for single-line components. Components with a single attribute will be kept on one line if the total length is less than this value (default: 120).
+- `symfony-ux-twig-component.minAttributesMultiline`: Minimum number of attributes required to format a component with multiple lines. Components with fewer attributes will be kept on one line if the total length is less than maxLineLength (default: 2).
+
+## Formatting
+
+The extension provides formatting for Twig components. By default, components with multiple attributes are formatted with each attribute on a separate line:
+
+```twig
+<twig:Content:Menu:MenuItemCard
+    routename="app_home"
+    title="Home"
+    routeparams="{{ mergedParams }}"
+>
+```
+
+Components with a single attribute or fewer than the configured minimum number of attributes (default: 2) will be kept on a single line if the total length is less than the configured maximum line length (default: 120):
+
+```twig
+<twig:Content:Icon name="home">
+```
 
 ## Commands
 

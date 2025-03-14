@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { findComponentFiles } from '../utils/componentFinder';
 
 // Navigate to Twig component
@@ -22,7 +23,7 @@ export async function navigateToTwigComponent(editor: vscode.TextEditor, isModif
 		if (phpFiles.length > 0) {
 			items.push({
 				label: "$(code) Open Component File",
-				description: phpFiles[0].fsPath.split('/').pop(),
+				description: path.basename(phpFiles[0].fsPath),
 				detail: phpFiles[0].fsPath
 			});
 		}
@@ -30,7 +31,7 @@ export async function navigateToTwigComponent(editor: vscode.TextEditor, isModif
 		if (twigFiles.length > 0) {
 			items.push({
 				label: "$(file) Open Template File",
-				description: twigFiles[0].fsPath.split('/').pop(),
+				description: path.basename(twigFiles[0].fsPath),
 				detail: twigFiles[0].fsPath
 			});
 		}
@@ -88,59 +89,64 @@ export async function navigateToTwigComponent(editor: vscode.TextEditor, isModif
 	}
 }
 
-// Register commands for navigation
-export function registerNavigationCommands(context: vscode.ExtensionContext): vscode.Disposable[] {
-	const disposables: vscode.Disposable[] = [];
-
-	// Register the command for navigating to Twig components
-	const navigateCommand = vscode.commands.registerTextEditorCommand(
-		'symfonyUxTwigComponent.navigateToComponent',
-		(editor, edit) => {
-			navigateToTwigComponent(editor, false);
+// Definition provider for Twig components
+export class TwigComponentDefinitionProvider implements vscode.DefinitionProvider {
+	async provideDefinition(
+		document: vscode.TextDocument,
+		position: vscode.Position,
+		token: vscode.CancellationToken
+	): Promise<vscode.Definition | undefined> {
+		// Find the files but don't navigate immediately
+		const result = await findComponentFiles(document, position);
+		if (!result) {
+			return undefined;
 		}
-	);
-	disposables.push(navigateCommand);
-
-	// Register a separate command for Cmd+click navigation (Alt+click on Windows/Linux)
-	const modifierNavigateCommand = vscode.commands.registerCommand(
-		'symfonyUxTwigComponent.modifierNavigateToComponent',
-		async () => {
+		
+		const { phpFiles, twigFiles } = result;
+		
+		// Use a timeout to defer the quick pick menu to ensure it only appears on click, not hover
+		// This is a workaround to distinguish between hover and click
+		setTimeout(async () => {
 			const editor = vscode.window.activeTextEditor;
-			if (editor) {
+			if (editor && editor.document === document) {
+				// Show the quick pick menu with isModifierClick=true to always show options
 				await navigateToTwigComponent(editor, true);
 			}
+		}, 100);
+		
+		// Return a dummy location to satisfy the definition provider interface
+		// We're not actually navigating here - our timeout will handle that
+		if (phpFiles.length > 0) {
+			return new vscode.Location(phpFiles[0], new vscode.Position(0, 0));
+		} else if (twigFiles.length > 0) {
+			return new vscode.Location(twigFiles[0], new vscode.Position(0, 0));
 		}
-	);
-	disposables.push(modifierNavigateCommand);
+		
+		return undefined;
+	}
+}
 
-	// Register command to open a single file
-	const openFileCommand = vscode.commands.registerCommand(
-		'symfonyUxTwigComponent.openFile',
-		async (args) => {
-			if (args && args.filePath) {
-				const uri = vscode.Uri.file(args.filePath);
-				await vscode.window.showTextDocument(uri);
+// Register navigation commands and providers
+export function registerNavigationCommands(context: vscode.ExtensionContext): vscode.Disposable[] {
+	const disposables: vscode.Disposable[] = [];
+	
+	// Register the navigation command
+	disposables.push(
+		vscode.commands.registerCommand('symfony-ux-twig-component.navigateToComponent', async () => {
+			const editor = vscode.window.activeTextEditor;
+			if (editor) {
+				await navigateToTwigComponent(editor);
 			}
-		}
+		})
 	);
-	disposables.push(openFileCommand);
-
-	// Register command to open both files
-	const openBothFilesCommand = vscode.commands.registerCommand(
-		'symfonyUxTwigComponent.openBothFiles',
-		async (args) => {
-			if (args && args.phpFilePath && args.twigFilePath) {
-				// Open Twig file first (non-preview)
-				const twigUri = vscode.Uri.file(args.twigFilePath);
-				await vscode.window.showTextDocument(twigUri, { preview: false });
-
-				// Then open PHP file
-				const phpUri = vscode.Uri.file(args.phpFilePath);
-				await vscode.window.showTextDocument(phpUri);
-			}
-		}
+	
+	// Register the definition provider for Twig components
+	disposables.push(
+		vscode.languages.registerDefinitionProvider(
+			{ language: 'twig' },
+			new TwigComponentDefinitionProvider()
+		)
 	);
-	disposables.push(openBothFilesCommand);
-
+	
 	return disposables;
 } 

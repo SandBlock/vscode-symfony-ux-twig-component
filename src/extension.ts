@@ -5,6 +5,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { registerFormattingProviders } from './providers/formattingProvider';
 import { registerFormattingCommands } from './commands/formatting';
+import { registerNavigationCommands } from './commands/navigation';
 import { debugLog, registerConfigChangeListener } from './utils/config';
 
 // Regex to match Twig component tags with multi-level namespaces
@@ -22,16 +23,8 @@ export function activate(context: vscode.ExtensionContext) {
 	// Store all disposables in an array
 	const disposables: vscode.Disposable[] = [];
 	
-	// Register the navigation command
-	disposables.push(
-		vscode.commands.registerCommand('symfony-ux-twig-component.navigateToComponent', () => {
-			const editor = vscode.window.activeTextEditor;
-			if (editor) {
-				// We'll implement this in a separate PR
-				vscode.window.showInformationMessage('Navigation to component will be implemented in a future update.');
-			}
-		})
-	);
+	// Register navigation commands and providers
+	disposables.push(...registerNavigationCommands(context));
 	
 	// Register formatting providers
 	disposables.push(...registerFormattingProviders(context));
@@ -47,6 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
 			disposables.length = 0;
 			
 			// Re-register all providers with new configuration
+			disposables.push(...registerNavigationCommands(context));
 			disposables.push(...registerFormattingProviders(context));
 			disposables.push(...registerFormattingCommands(context));
 			
