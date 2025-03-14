@@ -38,7 +38,7 @@ There are two ways to use the modifier key with click navigation:
    - Open the Twig template file
    - Open both files in separate tabs
 
-2. **Context Menu**: Right-click on a component tag and select "Navigate to Twig Component (Show Menu)" from the context menu.
+2. **Context Menu**: Right-click on a component tag and select "Navigate to Twig Component" from the context menu.
 
 This is useful when you want to choose which file to open, even if only one file type is found.
 

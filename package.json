@@ -35,10 +35,6 @@
         "title": "Navigate to Twig Component"
       },
       {
-        "command": "symfonyUxTwigComponent.modifierNavigateToComponent",
-        "title": "Navigate to Twig Component (Show Menu)"
-      },
-      {
         "command": "symfonyUxTwigComponent.openFile",
         "title": "Open Twig Component File"
       },
@@ -50,9 +46,11 @@
     "keybindings": [
       {
         "command": "symfonyUxTwigComponent.modifierNavigateToComponent",
-        "key": "alt+f12",
-        "mac": "cmd+f12",
-        "when": "editorLangId == twig && editorTextFocus"
+        "key": "cmd+click",
+        "mac": "cmd+click",
+        "win": "ctrl+click",
+        "linux": "ctrl+click",
+        "when": "editorTextFocus && editorLangId == 'twig'"
       }
     ],
     "menus": {
