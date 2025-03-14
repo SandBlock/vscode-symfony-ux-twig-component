@@ -21,14 +21,26 @@ Example:
 
 Click on either the namespace part or the component name in a Twig component tag to navigate to the corresponding PHP class or Twig template file. For example, in `<twig:Content:Menu:MenuItemCard />`, you can click on either `Content:Menu` or `MenuItemCard` to navigate.
 
-When both the component file and template file are found, a quick pick menu will appear allowing you to:
-- Open the component file
-- Open the template file
-- Open both files in separate tabs
+When you click on a component tag:
+- If both the PHP component file and Twig template file are found, a quick pick menu will appear allowing you to choose which file(s) to open
+- If only one file is found (either the PHP component or Twig template), it will open directly
 
-If only one file is found (either the component or template), it will open directly without showing the menu.
+#### Modifier Key + Click Navigation
 
-You can also right-click on a component tag and select "Navigate to Twig Component" from the context menu.
+There are two ways to use the modifier key with click navigation:
+
+1. **Keyboard Shortcut**: 
+   - On macOS: Press ⌘F12 (Cmd+F12) when your cursor is on a component tag
+   - On Windows/Linux: Press Alt+F12 when your cursor is on a component tag
+   
+   This will show the quick pick menu with options to:
+   - Open the PHP component file
+   - Open the Twig template file
+   - Open both files in separate tabs
+
+2. **Context Menu**: Right-click on a component tag and select "Navigate to Twig Component (Show Menu)" from the context menu.
+
+This is useful when you want to choose which file to open, even if only one file type is found.
 
 The extension will search for the component in the configured locations (see Extension Settings).
 
@@ -68,8 +80,8 @@ The extension uses a two-level configuration approach:
 1. **Base Paths**: Define the root directories where your components are located
 2. **Component Paths**: Define the relative paths from the base paths to the actual component files
 
-When you use a component like `<twig:Content:Menu:MenuItemCard />`, the extension:
-1. Matches the namespace prefix (e.g., `Content`) with the configured base paths
+When you use a component like `<twig:App:Menu:MenuItemCard />`, the extension:
+1. Matches the namespace prefix (e.g., `App`) with the configured base paths
 2. Removes the matched part from the namespace
 3. Uses the remaining namespace parts and component name to find the file
 
@@ -81,8 +93,6 @@ When you use a component like `<twig:Content:Menu:MenuItemCard />`, the extensio
 Default PHP base paths:
 ```json
 [
-  "src/Content",
-  "src/Portal/Shared",
   "src"
 ]
 ```
@@ -104,8 +114,6 @@ Default PHP component paths:
 Default Twig base paths:
 ```json
 [
-  "templates/content",
-  "templates/portal/shared",
   "templates"
 ]
 ```
@@ -115,7 +123,42 @@ Default Twig template paths:
 [
   "components/${namespace}/${componentName}.html.twig",
   "twig/components/${namespace}/${componentName}.html.twig",
-  "${namespace}/${componentName}.html.twig"
+  "${namespace}/${componentName}.html.twig",
+  "components/${namespace}/${componentName}.html.twig"
+]
+```
+
+The extension will also directly check for templates in:
+```
+templates/components/[full namespace]/[componentName].html.twig
+templates_new/components/[full namespace]/[componentName].html.twig
+```
+
+For example, with a component `<twig:Content:Menu:MenuItem />`, it will check:
+```
+templates/components/Content/Menu/MenuItem.html.twig
+templates_new/components/Content/Menu/MenuItem.html.twig
+```
+
+#### Additional Configuration Options
+
+* `symfonyUxTwigComponent.excludedDirectoryNames`: Directory names to exclude when parsing namespaces from paths. These are typically infrastructure directories that don't represent logical namespaces.
+
+Default excluded directory names:
+```json
+[
+  "src",
+  "templates",
+  "components"
+]
+```
+
+* `symfonyUxTwigComponent.fallbackTemplateDirs`: Fallback template directories to search when a template file can't be found using the standard paths.
+
+Default fallback template directories:
+```json
+[
+  "templates"
 ]
 ```
 
@@ -124,13 +167,13 @@ Default Twig template paths:
 For a project with the following structure:
 ```
 src/
-  Content/
+  App/
     Twig/
       Component/
         Menu/
           MenuItemCard.php
 templates/
-  content/
+  app/
     components/
       menu/
         MenuItemCard.html.twig
@@ -138,23 +181,35 @@ templates/
 
 You would configure:
 ```json
-"symfonyUxTwigComponent.phpBasePaths": ["src/Content"],
+"symfonyUxTwigComponent.phpBasePaths": ["src/App"],
 "symfonyUxTwigComponent.phpComponentPaths": ["Twig/Component/${namespace}/${componentName}.php"],
-"symfonyUxTwigComponent.twigBasePaths": ["templates/content"],
+"symfonyUxTwigComponent.twigBasePaths": ["templates/app"],
 "symfonyUxTwigComponent.twigTemplatePaths": ["components/${namespace}/${componentName}.html.twig"]
 ```
 
-Then, when you use `<twig:Content:Menu:MenuItemCard />`:
-1. The extension matches "Content" with "src/Content"
+Then, when you use `<twig:App:Menu:MenuItemCard />`:
+1. The extension matches "App" with "src/App"
 2. The remaining namespace is "Menu"
-3. It looks for the component at "src/Content/Twig/Component/Menu/MenuItemCard.php"
-4. It looks for the template at "templates/content/components/menu/MenuItemCard.html.twig"
+3. It looks for the component at "src/App/Twig/Component/Menu/MenuItemCard.php"
+4. It looks for the template at "templates/app/components/menu/MenuItemCard.html.twig"
 
 ## Known Issues
 
 - The extension may not detect all possible locations of Twig component files by default. Use the configuration settings to add custom paths.
 
 ## Release Notes
+
+### 0.0.7
+
+- Made the extension more generic by removing project-specific folder names
+- Added new configuration options for excluded directory names and fallback template directories
+- Updated default configuration to be more generic and usable by anyone
+- Improved namespace parsing to be more flexible with different project structures
+- Added direct support for templates in templates/components/[namespace]/[componentName].html.twig pattern
+- Added platform-specific keyboard shortcuts:
+  - macOS: ⌘F12 (Cmd+F12) to show the file selection menu
+  - Windows/Linux: Alt+F12 to show the file selection menu
+- Added context menu option to show the file selection menu
 
 ### 0.0.6
 

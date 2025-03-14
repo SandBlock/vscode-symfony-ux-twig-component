@@ -17,7 +17,18 @@ export function activate(context: vscode.ExtensionContext) {
 	const navigateCommand = vscode.commands.registerTextEditorCommand(
 		'symfonyUxTwigComponent.navigateToComponent',
 		(editor, edit) => {
-			navigateToTwigComponent(editor);
+			navigateToTwigComponent(editor, false);
+		}
+	);
+
+	// Register a separate command for Cmd+click navigation (Alt+click on Windows/Linux)
+	const modifierNavigateCommand = vscode.commands.registerCommand(
+		'symfonyUxTwigComponent.modifierNavigateToComponent',
+		async () => {
+			const editor = vscode.window.activeTextEditor;
+			if (editor) {
+				await navigateToTwigComponent(editor, true);
+			}
 		}
 	);
 
@@ -34,7 +45,41 @@ export function activate(context: vscode.ExtensionContext) {
 		new TwigComponentDefinitionProvider()
 	);
 
-	context.subscriptions.push(navigateCommand, formattingProvider, definitionProvider);
+	// Register command to open a single file
+	const openFileCommand = vscode.commands.registerCommand(
+		'symfonyUxTwigComponent.openFile',
+		async (args) => {
+			if (args && args.filePath) {
+				const uri = vscode.Uri.file(args.filePath);
+				await vscode.window.showTextDocument(uri);
+			}
+		}
+	);
+
+	// Register command to open both files
+	const openBothFilesCommand = vscode.commands.registerCommand(
+		'symfonyUxTwigComponent.openBothFiles',
+		async (args) => {
+			if (args && args.phpFilePath && args.twigFilePath) {
+				// Open Twig file first (non-preview)
+				const twigUri = vscode.Uri.file(args.twigFilePath);
+				await vscode.window.showTextDocument(twigUri, { preview: false });
+				
+				// Then open PHP file
+				const phpUri = vscode.Uri.file(args.phpFilePath);
+				await vscode.window.showTextDocument(phpUri);
+			}
+		}
+	);
+
+	context.subscriptions.push(
+		navigateCommand,
+		modifierNavigateCommand,
+		formattingProvider, 
+		definitionProvider, 
+		openFileCommand,
+		openBothFilesCommand
+	);
 }
 
 // Get configured paths
@@ -42,7 +87,9 @@ function getConfiguredPaths(): {
 	phpBasePaths: string[], 
 	phpComponentPaths: string[], 
 	twigBasePaths: string[], 
-	twigTemplatePaths: string[] 
+	twigTemplatePaths: string[],
+	excludedDirectoryNames: string[],
+	fallbackTemplateDirs: string[]
 } {
 	const config = vscode.workspace.getConfiguration('symfonyUxTwigComponent');
 	
@@ -66,7 +113,17 @@ function getConfiguredPaths(): {
 		'${namespace}/${componentName}.html.twig'
 	]);
 	
-	return { phpBasePaths, phpComponentPaths, twigBasePaths, twigTemplatePaths };
+	// Get excluded directory names for namespace parsing
+	const excludedDirectoryNames = config.get<string[]>('excludedDirectoryNames', [
+		'src', 'templates', 'components'
+	]);
+	
+	// Get fallback template directories for aggressive search
+	const fallbackTemplateDirs = config.get<string[]>('fallbackTemplateDirs', [
+		'templates'
+	]);
+	
+	return { phpBasePaths, phpComponentPaths, twigBasePaths, twigTemplatePaths, excludedDirectoryNames, fallbackTemplateDirs };
 }
 
 // Parse the namespace from a component tag and match it with base paths
@@ -77,6 +134,9 @@ function parseComponentNamespace(fullNamespace: string, basePaths: string[]): {
 	// Debug logging
 	console.log(`Parsing namespace: ${fullNamespace}`);
 	console.log(`Available base paths: ${JSON.stringify(basePaths)}`);
+	
+	// Get excluded directory names from configuration
+	const { excludedDirectoryNames } = getConfiguredPaths();
 	
 	// Convert namespace format (e.g., "Content:Menu") to path format (e.g., "Content/Menu")
 	const namespaceParts = fullNamespace.split(':');
@@ -93,7 +153,7 @@ function parseComponentNamespace(fullNamespace: string, basePaths: string[]): {
 		
 		// Skip empty parts and convert to namespace format
 		for (const part of basePathParts) {
-			if (part && part !== 'src' && part !== 'templates' && part !== 'templates_new' && part !== 'components') {
+			if (part && !excludedDirectoryNames.includes(part.toLowerCase())) {
 				basePathNamespace += (basePathNamespace ? ':' : '') + part;
 			}
 		}
@@ -130,7 +190,7 @@ function parseComponentNamespace(fullNamespace: string, basePaths: string[]): {
 	// Try to match partial paths (for more complex directory structures)
 	for (const basePath of basePaths) {
 		const cleanBasePath = basePath.replace(/\/+$/, '');
-		const basePathParts = cleanBasePath.split('/').filter(part => part && part !== 'src' && part !== 'templates' && part !== 'templates_new' && part !== 'components');
+		const basePathParts = cleanBasePath.split('/').filter(part => part && !excludedDirectoryNames.includes(part.toLowerCase()));
 		
 		// Try to match as many parts as possible from the beginning
 		let matchedParts = 0;
@@ -302,6 +362,19 @@ async function findComponentFiles(document: vscode.TextDocument, position: vscod
 		}
 	}
 
+	// Add direct template paths for the specific case of templates/components/[namespace]/[componentName].html.twig
+	// This is a special case for the user's specific configuration
+	for (const basePath of twigBasePaths) {
+		const directPath = path.join(
+			basePath,
+			'components',
+			fullNamespace.replace(/:/g, '/'),
+			`${componentName}.html.twig`
+		);
+		twigPossiblePaths.push(directPath);
+		console.log(`Added direct Twig path: ${directPath}`);
+	}
+
 	// Try additional template path patterns for complex structures
 	// This is a fallback for cases where the standard patterns don't work
 	if (twigPossiblePaths.length === 0 || (twigResult.matchedBasePath === null && phpResult.matchedBasePath !== null)) {
@@ -381,12 +454,13 @@ async function findComponentFiles(document: vscode.TextDocument, position: vscod
 	if (foundPhpFiles.length > 0 && foundTwigFiles.length === 0) {
 		console.log('Found PHP files but no Twig files, trying more aggressive search');
 		
+		// Get fallback template directories from configuration
+		const { fallbackTemplateDirs } = getConfiguredPaths();
+		
 		// Try to find the template by searching for the component name in all template directories
 		for (const workspaceFolder of workspaceFolders) {
-			// Check in templates and templates_new directories
-			const templateDirs = ['templates', 'templates_new'];
-			
-			for (const templateDir of templateDirs) {
+			// Check in configured fallback template directories
+			for (const templateDir of fallbackTemplateDirs) {
 				const templateBasePath = path.join(workspaceFolder.uri.fsPath, templateDir);
 				
 				// Skip if the directory doesn't exist
@@ -413,6 +487,17 @@ async function findComponentFiles(document: vscode.TextDocument, position: vscod
 							console.log(`Found Twig file at: ${filePath}`);
 							foundTwigFiles.push(vscode.Uri.file(filePath));
 						}
+						
+						// Check for the specific case of templates/components/[namespace]/[componentName].html.twig
+						const componentsPath = path.join(basePath, 'components', fullNamespace.replace(/:/g, '/'), `${componentName}.html.twig`);
+						const componentsFilePath = path.join(workspaceFolder.uri.fsPath, componentsPath);
+						
+						console.log(`Checking specific components path: ${componentsFilePath}`);
+						
+						if (fs.existsSync(componentsFilePath)) {
+							console.log(`Found Twig file at: ${componentsFilePath}`);
+							foundTwigFiles.push(vscode.Uri.file(componentsFilePath));
+						}
 					}
 				} catch (error) {
 					console.error(`Error searching for template: ${error}`);
@@ -438,7 +523,7 @@ async function findComponentFiles(document: vscode.TextDocument, position: vscod
 }
 
 // Navigate to Twig component
-async function navigateToTwigComponent(editor: vscode.TextEditor) {
+async function navigateToTwigComponent(editor: vscode.TextEditor, isModifierClick: boolean = false) {
 	const position = editor.selection.active;
 	const document = editor.document;
 	
@@ -450,68 +535,78 @@ async function navigateToTwigComponent(editor: vscode.TextEditor) {
 	
 	const { phpFiles, twigFiles } = result;
 	
-	// Create quick pick items
-	const items: vscode.QuickPickItem[] = [];
-	
-	if (phpFiles.length > 0) {
-		items.push({
-			label: "$(code) Open Component File",
-			description: path.basename(phpFiles[0].fsPath),
-			detail: phpFiles[0].fsPath
-		});
-	}
-	
-	if (twigFiles.length > 0) {
-		items.push({
-			label: "$(file) Open Template File",
-			description: path.basename(twigFiles[0].fsPath),
-			detail: twigFiles[0].fsPath
-		});
-	}
-	
-	if (phpFiles.length > 0 && twigFiles.length > 0) {
-		items.push({
-			label: "$(files) Open Both Files",
-			description: "Open both component and template files",
-			detail: "This will open both files in separate tabs"
-		});
-	}
-	
-	// Create a QuickPick
-	const quickPick = vscode.window.createQuickPick();
-	quickPick.items = items;
-	quickPick.placeholder = "Select which file(s) to open";
-	
-	// Handle selection
-	quickPick.onDidAccept(() => {
-		const selection = quickPick.selectedItems[0];
-		if (!selection) {
-			console.log('No selection made');
+	// If modifier key is pressed (Cmd on macOS, Alt on Windows/Linux), show the quick pick menu
+	if (isModifierClick || (phpFiles.length > 0 && twigFiles.length > 0)) {
+		// Create quick pick items
+		const items: vscode.QuickPickItem[] = [];
+		
+		if (phpFiles.length > 0) {
+			items.push({
+				label: "$(code) Open Component File",
+				description: path.basename(phpFiles[0].fsPath),
+				detail: phpFiles[0].fsPath
+			});
+		}
+		
+		if (twigFiles.length > 0) {
+			items.push({
+				label: "$(file) Open Template File",
+				description: path.basename(twigFiles[0].fsPath),
+				detail: twigFiles[0].fsPath
+			});
+		}
+		
+		if (phpFiles.length > 0 && twigFiles.length > 0) {
+			items.push({
+				label: "$(files) Open Both Files",
+				description: "Open both component and template files",
+				detail: "This will open both files in separate tabs"
+			});
+		}
+		
+		// Create a QuickPick
+		const quickPick = vscode.window.createQuickPick();
+		quickPick.items = items;
+		quickPick.placeholder = "Select which file(s) to open";
+		
+		// Handle selection
+		quickPick.onDidAccept(() => {
+			const selection = quickPick.selectedItems[0];
+			if (!selection) {
+				console.log('No selection made');
+				quickPick.hide();
+				return;
+			}
+			
+			console.log(`User selected: ${selection.label}`);
 			quickPick.hide();
-			return;
-		}
-		
-		console.log(`User selected: ${selection.label}`);
-		quickPick.hide();
-		
-		if (selection.label.includes("Open Component File") && phpFiles.length > 0) {
-			// Open component file
-			vscode.window.showTextDocument(phpFiles[0]);
-		} else if (selection.label.includes("Open Template File") && twigFiles.length > 0) {
-			// Open template file
-			vscode.window.showTextDocument(twigFiles[0]);
-		} else if (selection.label.includes("Open Both Files")) {
-			// Open both files
-			if (twigFiles.length > 0) {
-				vscode.window.showTextDocument(twigFiles[0], { preview: false });
-			}
-			if (phpFiles.length > 0) {
+			
+			if (selection.label.includes("Open Component File") && phpFiles.length > 0) {
+				// Open component file
 				vscode.window.showTextDocument(phpFiles[0]);
+			} else if (selection.label.includes("Open Template File") && twigFiles.length > 0) {
+				// Open template file
+				vscode.window.showTextDocument(twigFiles[0]);
+			} else if (selection.label.includes("Open Both Files")) {
+				// Open both files
+				if (twigFiles.length > 0) {
+					vscode.window.showTextDocument(twigFiles[0], { preview: false });
+				}
+				if (phpFiles.length > 0) {
+					vscode.window.showTextDocument(phpFiles[0]);
+				}
 			}
+		});
+		
+		quickPick.show();
+	} else {
+		// If only one type of file is found and modifier key is not pressed, open it directly
+		if (phpFiles.length > 0) {
+			vscode.window.showTextDocument(phpFiles[0]);
+		} else if (twigFiles.length > 0) {
+			vscode.window.showTextDocument(twigFiles[0]);
 		}
-	});
-	
-	quickPick.show();
+	}
 }
 
 // Definition provider for Twig components (for backward compatibility)
@@ -521,6 +616,20 @@ class TwigComponentDefinitionProvider implements vscode.DefinitionProvider {
 		position: vscode.Position,
 		token: vscode.CancellationToken
 	): Promise<vscode.Definition | undefined> {
+		// Get the active editor
+		const editor = vscode.window.activeTextEditor;
+		if (editor && editor.document === document) {
+			// Create a new selection at the clicked position
+			editor.selection = new vscode.Selection(position, position);
+			
+			// Navigate to the component
+			await navigateToTwigComponent(editor, false);
+			
+			// Return undefined to prevent the default go-to-definition behavior
+			return undefined;
+		}
+		
+		// Fallback to the original behavior if something goes wrong
 		const result = await findComponentFiles(document, position);
 		if (!result) {
 			return undefined;
