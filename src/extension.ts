@@ -47,8 +47,6 @@ function getConfiguredPaths(): {
 	const config = vscode.workspace.getConfiguration('symfonyUxTwigComponent');
 	
 	const phpBasePaths = config.get<string[]>('phpBasePaths', [
-		'src/Content',
-		'src/Portal/Shared',
 		'src'
 	]);
 	
@@ -59,8 +57,6 @@ function getConfiguredPaths(): {
 	]);
 	
 	const twigBasePaths = config.get<string[]>('twigBasePaths', [
-		'templates/content',
-		'templates/portal/shared',
 		'templates'
 	]);
 	
