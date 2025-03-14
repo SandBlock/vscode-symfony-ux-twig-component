@@ -4,7 +4,7 @@
   "colors": {},
   "tokenColors": [
     {
-      "scope": "entity.name.tag.twig-component.keyword.purple",
+      "scope": "entity.name.tag.twig-component.keyword.twig",
       "settings": {
         "foreground": "#C678DD"
       }
