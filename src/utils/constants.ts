@@ -1,9 +1,9 @@
 // Regex to match Twig component tags with multi-level namespaces
-export const TWIG_COMPONENT_REGEX = /<twig:([A-Za-z0-9_]+):([A-Za-z0-9_]+)/g;
+export const TWIG_COMPONENT_REGEX = /<twig:([A-Za-z0-9_:]+):([A-Za-z0-9_]+)/g;
 export const TWIG_COMPONENT_NAMESPACE_REGEX = /<twig:([A-Za-z0-9_:]+):([A-Za-z0-9_]+)/;
 
 // Regex to match Twig component attributes, including those with Twig variables
-export const TWIG_ATTRIBUTE_REGEX = /([a-zA-Z0-9_-]+)=(?:"([^"]*)"|'([^']*)'|"{{[^}]*}}"|'{{[^}]*}}'|{{[^}]*}})/g;
+export const TWIG_ATTRIBUTE_REGEX = /\s+([a-zA-Z0-9_-]+)=(?:"([^"]*)"|'([^']*)'|"{{[^}]*}}"|'{{[^}]*}}'|"{{[^}]*}}"|'{{[^}]*}}')/g;
 
 // Regex to detect flattened components (all on one line with multiple attributes)
 export const FLATTENED_COMPONENT_REGEX = /<twig:[A-Za-z0-9_:]+:[A-Za-z0-9_]+\s+[a-zA-Z0-9_-]+=(?:"[^"]*"|'[^']*')\s+[a-zA-Z0-9_-]+=(?:"[^"]*"|'[^']*')/g;
