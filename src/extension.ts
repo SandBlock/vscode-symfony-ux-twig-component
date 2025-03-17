@@ -614,7 +614,3 @@ class TwigComponentDefinitionProvider implements vscode.DefinitionProvider {
         return undefined;
     }
 }
-
-// Formatting provider is now imported from './providers/formattingProvider'
-
-
