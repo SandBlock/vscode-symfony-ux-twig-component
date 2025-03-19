@@ -407,6 +407,8 @@ function findFilesInWorkspace(phpPaths: string[], twigPaths: string[]): { phpFil
 	const phpFiles: vscode.Uri[] = [];
 	const twigFiles: vscode.Uri[] = [];
 
+	vscode.window.showInformationMessage(phpPaths.join('\n'));
+
 	for (const workspaceFolder of workspaceFolders) {
 		// Check PHP files
 		for (const possiblePath of phpPaths) {
@@ -518,7 +520,7 @@ async function navigateToTwigComponent(editor: vscode.TextEditor, isModifierClic
 
 	const result = await findComponentFiles(document, position);
 	if (!result) {
-		vscode.window.showInformationMessage('No Twig component found at cursor position');
+		// vscode.window.showInformationMessage('No Twig component found at cursor position');
 		return;
 	}
 
