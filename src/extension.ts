@@ -1,5 +1,3 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -9,40 +7,52 @@ import { registerNavigationCommands } from './commands/navigation';
 import { debugLog, registerConfigChangeListener } from './utils/config';
 import { TWIG_COMPONENT_REGEX, TWIG_COMPONENT_NAMESPACE_REGEX, TWIG_ATTRIBUTE_REGEX, FLATTENED_COMPONENT_REGEX } from './utils/constants';
 
-// This method is called when the extension is activated
 export function activate(context: vscode.ExtensionContext) {
 	debugLog('Activating Symfony UX Twig Component extension');
 	
-	// Store all disposables in an array
-	const disposables: vscode.Disposable[] = [];
+	const commandAndProviderDisposables: Set<vscode.Disposable> = new Set();
 	
-	// Register navigation commands and providers
-	disposables.push(...registerNavigationCommands(context));
-	
-	// Register formatting providers
-	disposables.push(...registerFormattingProviders(context));
-	
-	// Register formatting commands
-	disposables.push(...registerFormattingCommands(context));
-	
-	// Register configuration change listener
-	disposables.push(
-		registerConfigChangeListener(() => {
-			// Dispose all existing providers
-			disposables.forEach(d => d.dispose());
-			disposables.length = 0;
+	function registerCommandsAndProviders() {
+		commandAndProviderDisposables.forEach(disposable => {
+			disposable.dispose();
 			
-			// Re-register all providers with new configuration
-			disposables.push(...registerNavigationCommands(context));
-			disposables.push(...registerFormattingProviders(context));
-			disposables.push(...registerFormattingCommands(context));
-			
-			debugLog('Configuration changed, providers reregistered');
-		})
-	);
+			const index = context.subscriptions.indexOf(disposable);
+			if (index >= 0) {
+				context.subscriptions.splice(index, 1);
+			}
+		});
+		
+		commandAndProviderDisposables.clear();
+		
+		const navigationCommands = registerNavigationCommands(context);
+		navigationCommands.forEach(cmd => {
+			commandAndProviderDisposables.add(cmd);
+			context.subscriptions.push(cmd);
+		});
+		
+		const formattingProviders = registerFormattingProviders(context);
+		formattingProviders.forEach(provider => {
+			commandAndProviderDisposables.add(provider);
+			context.subscriptions.push(provider);
+		});
+		
+		const formattingCommands = registerFormattingCommands(context);
+		formattingCommands.forEach(cmd => {
+			commandAndProviderDisposables.add(cmd);
+			context.subscriptions.push(cmd);
+		});
+		
+		debugLog(`Registered ${commandAndProviderDisposables.size} commands and providers`);
+	}
 	
-	// Add all disposables to the context
-	disposables.forEach(d => context.subscriptions.push(d));
+	registerCommandsAndProviders();
+	
+	const configListener = registerConfigChangeListener(() => {
+		debugLog('Configuration changed, re-registering providers and commands');
+		registerCommandsAndProviders();
+	});
+	
+	context.subscriptions.push(configListener);
 	
 	debugLog('Symfony UX Twig Component extension activated');
 }
