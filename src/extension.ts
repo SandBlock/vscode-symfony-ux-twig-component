@@ -57,12 +57,10 @@ export function activate(context: vscode.ExtensionContext) {
 	debugLog('Symfony UX Twig Component extension activated');
 }
 
-// This method is called when the extension is deactivated
 export function deactivate() {
 	debugLog('Symfony UX Twig Component extension deactivated');
 }
 
-// Get configured paths
 function getConfiguredPaths(): {
 	phpBasePaths: string[],
 	phpComponentPaths: string[],
@@ -93,12 +91,10 @@ function getConfiguredPaths(): {
 		'${namespace}/${componentName}.html.twig'
 	]);
 
-	// Get excluded directory names for namespace parsing
 	const excludedDirectoryNames = config.get<string[]>('excludedDirectoryNames', [
-		'src', 'templates', 'components'
+		'components', 'src', 'template', 'templates'
 	]);
 
-	// Get fallback template directories for aggressive search
 	const fallbackTemplateDirs = config.get<string[]>('fallbackTemplateDirs', [
 		'templates'
 	]);
@@ -106,105 +102,153 @@ function getConfiguredPaths(): {
 	return { phpBasePaths, phpComponentPaths, twigBasePaths, twigTemplatePaths, excludedDirectoryNames, fallbackTemplateDirs };
 }
 
-// Parse the namespace from a component tag and match it with base paths
+/**
+ * Converts a base path to a namespace format by filtering out excluded directory names
+ * and joining the remaining parts with colons.
+ */
+function basePathToNamespace(basePath: string, excludedDirectoryNames: string[]): string {
+	const cleanBasePath = basePath.replace(/\/+$/, '');
+	const basePathParts = cleanBasePath.split('/');
+	let basePathNamespace = '';
+
+	// Skip empty parts and convert to namespace format
+	for (const part of basePathParts) {
+		if (part && !excludedDirectoryNames.includes(part.toLowerCase())) {
+			basePathNamespace += (basePathNamespace ? ':' : '') + part;
+		}
+	}
+
+	console.log(`Base path: ${cleanBasePath}, converted to namespace: ${basePathNamespace}`);
+	return basePathNamespace;
+}
+
+/**
+ * Attempts to find an exact match between a namespace and a base path namespace.
+ * Returns the match result or null if no match is found.
+ */
+function findExactMatch(fullNamespace: string, basePathNamespace: string, cleanBasePath: string): { matchedBasePath: string, remainingNamespace: string } | null {
+	// 1. Check for exact match (for cases like templates/components/Content)
+	if (basePathNamespace && basePathNamespace === fullNamespace) {
+		console.log(`Exact match found! Base path: ${cleanBasePath}, remaining namespace: ""`);
+		return { matchedBasePath: cleanBasePath, remainingNamespace: "" };
+	}
+
+	// 2. Check if the namespace starts with the base path namespace
+	if (basePathNamespace && fullNamespace.startsWith(basePathNamespace + ':')) {
+		// Remove the matched part from the namespace
+		const remainingNamespace = fullNamespace.substring(basePathNamespace.length + 1);
+		console.log(`Prefix match found! Base path: ${cleanBasePath}, remaining namespace: ${remainingNamespace}`);
+		return { matchedBasePath: cleanBasePath, remainingNamespace };
+	}
+
+	// 3. Check if the base path starts with the namespace (reverse match)
+	if (basePathNamespace && basePathNamespace.startsWith(fullNamespace + ':')) {
+		console.log(`Reverse match found! Base path: ${cleanBasePath}, remaining namespace: ""`);
+		return { matchedBasePath: cleanBasePath, remainingNamespace: "" };
+	}
+
+	// 4. Check if the base path contains the full namespace
+	if (basePathNamespace && basePathNamespace.includes(fullNamespace)) {
+		console.log(`Contained match found! Base path: ${cleanBasePath}, remaining namespace: ""`);
+		return { matchedBasePath: cleanBasePath, remainingNamespace: "" };
+	}
+
+	return null;
+}
+
+/**
+ * Attempts to find partial matches between namespace parts and base path parts.
+ * Returns the match result or null if no match is found.
+ */
+function findPartialMatch(namespaceParts: string[], basePath: string, excludedDirectoryNames: string[]): { matchedBasePath: string, remainingNamespace: string } | null {
+	const cleanBasePath = basePath.replace(/\/+$/, '');
+	const basePathParts = cleanBasePath.split('/').filter(part => part && !excludedDirectoryNames.includes(part.toLowerCase()));
+
+	// Try to match as many parts as possible from the beginning
+	let matchedParts = 0;
+	for (let i = 0; i < Math.min(basePathParts.length, namespaceParts.length); i++) {
+		if (basePathParts[i].toLowerCase() === namespaceParts[i].toLowerCase()) {
+			matchedParts++;
+		} else {
+			break;
+		}
+	}
+
+	if (matchedParts > 0) {
+		const remainingNamespace = namespaceParts.slice(matchedParts).join(':');
+		console.log(`Partial match found! Base path: ${cleanBasePath}, matched parts: ${matchedParts}, remaining namespace: ${remainingNamespace}`);
+		return { matchedBasePath: cleanBasePath, remainingNamespace };
+	}
+
+	return null;
+}
+
+/**
+ * Attempts to find unordered matches between namespace parts and base path parts.
+ * Returns the match result or null if no match is found.
+ */
+function findUnorderedMatch(namespaceParts: string[], basePath: string, excludedDirectoryNames: string[]): { matchedBasePath: string, remainingNamespace: string } | null {
+	const cleanBasePath = basePath.replace(/\/+$/, '');
+	const basePathParts = cleanBasePath.split('/').filter(part => part && !excludedDirectoryNames.includes(part.toLowerCase()));
+	const basePathPartsLower = basePathParts.map(part => part.toLowerCase());
+	
+	const matchedNamespaceParts: string[] = [];
+	const unmatchedNamespaceParts: string[] = [];
+
+	for (const part of namespaceParts) {
+		if (basePathPartsLower.includes(part.toLowerCase())) {
+			matchedNamespaceParts.push(part);
+		} else {
+			unmatchedNamespaceParts.push(part);
+		}
+	}
+
+	if (matchedNamespaceParts.length > 0) {
+		const remainingNamespace = unmatchedNamespaceParts.join(':');
+		console.log(`Partial unordered match found! Base path: ${cleanBasePath}, matched parts: ${matchedNamespaceParts.join(':')}, remaining namespace: ${remainingNamespace}`);
+		return { matchedBasePath: cleanBasePath, remainingNamespace };
+	}
+
+	return null;
+}
+
+/**
+ * Parses a component namespace and tries to match it with a base path.
+ * Returns the matched base path and the remaining namespace.
+ */
 function parseComponentNamespace(fullNamespace: string, basePaths: string[]): {
 	matchedBasePath: string | null,
 	remainingNamespace: string
 } {
-	// Debug logging
-	console.log(`Parsing namespace: ${fullNamespace}`);
-	console.log(`Available base paths: ${JSON.stringify(basePaths)}`);
-
-	// Get excluded directory names from configuration
 	const { excludedDirectoryNames } = getConfiguredPaths();
 
 	// Convert namespace format (e.g., "Content:Menu") to path format (e.g., "Content/Menu")
 	const namespaceParts = fullNamespace.split(':');
-	console.log(`Namespace parts: ${JSON.stringify(namespaceParts)}`);
 
 	// Try to match with base paths - first try exact matches
 	for (const basePath of basePaths) {
-		// Remove trailing slashes from base path
 		const cleanBasePath = basePath.replace(/\/+$/, '');
-
-		// Convert base path to namespace format for comparison
-		const basePathParts = cleanBasePath.split('/');
-		let basePathNamespace = '';
-
-		// Skip empty parts and convert to namespace format
-		for (const part of basePathParts) {
-			if (part && !excludedDirectoryNames.includes(part.toLowerCase())) {
-				basePathNamespace += (basePathNamespace ? ':' : '') + part;
-			}
-		}
-
-		console.log(`Base path: ${cleanBasePath}, converted to namespace: ${basePathNamespace}`);
-
-		// Check for exact match (for cases like templates/components/Content)
-		if (basePathNamespace && basePathNamespace === fullNamespace) {
-			console.log(`Exact match found! Base path: ${cleanBasePath}, remaining namespace: ""`);
-			return { matchedBasePath: cleanBasePath, remainingNamespace: "" };
-		}
-
-		// Check if the namespace starts with the base path namespace
-		if (basePathNamespace && fullNamespace.startsWith(basePathNamespace + ':')) {
-			// Remove the matched part from the namespace
-			const remainingNamespace = fullNamespace.substring(basePathNamespace.length + 1);
-			console.log(`Prefix match found! Base path: ${cleanBasePath}, remaining namespace: ${remainingNamespace}`);
-			return { matchedBasePath: cleanBasePath, remainingNamespace };
-		}
-
-		// Check if the base path starts with the namespace (reverse match)
-		if (basePathNamespace && basePathNamespace.startsWith(fullNamespace + ':')) {
-			console.log(`Reverse match found! Base path: ${cleanBasePath}, remaining namespace: ""`);
-			return { matchedBasePath: cleanBasePath, remainingNamespace: "" };
-		}
-
-		// Check if the base path contains the full namespace
-		if (basePathNamespace && basePathNamespace.includes(fullNamespace)) {
-			console.log(`Contained match found! Base path: ${cleanBasePath}, remaining namespace: ""`);
-			return { matchedBasePath: cleanBasePath, remainingNamespace: "" };
+		const basePathNamespace = basePathToNamespace(cleanBasePath, excludedDirectoryNames);
+		
+		// Try to find exact matches first
+		const exactMatch = findExactMatch(fullNamespace, basePathNamespace, cleanBasePath);
+		if (exactMatch) {
+			return exactMatch;
 		}
 	}
 
 	// Try to match partial paths (for more complex directory structures)
 	for (const basePath of basePaths) {
-		const cleanBasePath = basePath.replace(/\/+$/, '');
-		const basePathParts = cleanBasePath.split('/').filter(part => part && !excludedDirectoryNames.includes(part.toLowerCase()));
-
-		// Try to match as many parts as possible from the beginning
-		let matchedParts = 0;
-		for (let i = 0; i < Math.min(basePathParts.length, namespaceParts.length); i++) {
-			if (basePathParts[i].toLowerCase() === namespaceParts[i].toLowerCase()) {
-				matchedParts++;
-			} else {
-				break;
-			}
+		// Try to match parts in order
+		const partialMatch = findPartialMatch(namespaceParts, basePath, excludedDirectoryNames);
+		if (partialMatch) {
+			return partialMatch;
 		}
 
-		if (matchedParts > 0) {
-			const remainingNamespace = namespaceParts.slice(matchedParts).join(':');
-			console.log(`Partial match found! Base path: ${cleanBasePath}, matched parts: ${matchedParts}, remaining namespace: ${remainingNamespace}`);
-			return { matchedBasePath: cleanBasePath, remainingNamespace };
-		}
-
-		// Try to match parts in any order (for cases where the directory structure doesn't match the namespace exactly)
-		const basePathPartsLower = basePathParts.map(part => part.toLowerCase());
-		const matchedNamespaceParts: string[] = [];
-		const unmatchedNamespaceParts: string[] = [];
-
-		for (const part of namespaceParts) {
-			if (basePathPartsLower.includes(part.toLowerCase())) {
-				matchedNamespaceParts.push(part);
-			} else {
-				unmatchedNamespaceParts.push(part);
-			}
-		}
-
-		if (matchedNamespaceParts.length > 0) {
-			const remainingNamespace = unmatchedNamespaceParts.join(':');
-			console.log(`Partial unordered match found! Base path: ${cleanBasePath}, matched parts: ${matchedNamespaceParts.join(':')}, remaining namespace: ${remainingNamespace}`);
-			return { matchedBasePath: cleanBasePath, remainingNamespace };
+		// Try to match parts in any order
+		const unorderedMatch = findUnorderedMatch(namespaceParts, basePath, excludedDirectoryNames);
+		if (unorderedMatch) {
+			return unorderedMatch;
 		}
 	}
 
