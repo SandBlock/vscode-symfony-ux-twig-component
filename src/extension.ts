@@ -1,11 +1,11 @@
-import * as vscode from 'vscode';
-import * as path from 'path';
 import * as fs from 'fs';
-import { registerFormattingProviders } from './providers/formattingProvider';
+import * as path from 'path';
+import * as vscode from 'vscode';
 import { registerFormattingCommands } from './commands/formatting';
 import { registerNavigationCommands } from './commands/navigation';
+import { registerFormattingProviders } from './providers/formattingProvider';
 import { debugLog, registerConfigChangeListener } from './utils/config';
-import { TWIG_COMPONENT_REGEX, TWIG_COMPONENT_NAMESPACE_REGEX, TWIG_ATTRIBUTE_REGEX, FLATTENED_COMPONENT_REGEX } from './utils/constants';
+import { TWIG_COMPONENT_NAMESPACE_REGEX } from './utils/constants';
 
 export function activate(context: vscode.ExtensionContext) {
 	debugLog('Activating Symfony UX Twig Component extension');
@@ -111,14 +111,11 @@ function basePathToNamespace(basePath: string, excludedDirectoryNames: string[])
 	const basePathParts = cleanBasePath.split('/');
 	let basePathNamespace = '';
 
-	// Skip empty parts and convert to namespace format
 	for (const part of basePathParts) {
 		if (part && !excludedDirectoryNames.includes(part.toLowerCase())) {
 			basePathNamespace += (basePathNamespace ? ':' : '') + part;
 		}
 	}
-
-	console.log(`Base path: ${cleanBasePath}, converted to namespace: ${basePathNamespace}`);
 	return basePathNamespace;
 }
 
@@ -126,10 +123,9 @@ function basePathToNamespace(basePath: string, excludedDirectoryNames: string[])
  * Attempts to find an exact match between a namespace and a base path namespace.
  * Returns the match result or null if no match is found.
  */
-function findExactMatch(fullNamespace: string, basePathNamespace: string, cleanBasePath: string): { matchedBasePath: string, remainingNamespace: string } | null {
+function findExactNamespaceMatch(fullNamespace: string, basePathNamespace: string, cleanBasePath: string): { matchedBasePath: string, remainingNamespace: string } | null {
 	// 1. Check for exact match (for cases like templates/components/Content)
 	if (basePathNamespace && basePathNamespace === fullNamespace) {
-		console.log(`Exact match found! Base path: ${cleanBasePath}, remaining namespace: ""`);
 		return { matchedBasePath: cleanBasePath, remainingNamespace: "" };
 	}
 
@@ -137,19 +133,16 @@ function findExactMatch(fullNamespace: string, basePathNamespace: string, cleanB
 	if (basePathNamespace && fullNamespace.startsWith(basePathNamespace + ':')) {
 		// Remove the matched part from the namespace
 		const remainingNamespace = fullNamespace.substring(basePathNamespace.length + 1);
-		console.log(`Prefix match found! Base path: ${cleanBasePath}, remaining namespace: ${remainingNamespace}`);
 		return { matchedBasePath: cleanBasePath, remainingNamespace };
 	}
 
 	// 3. Check if the base path starts with the namespace (reverse match)
 	if (basePathNamespace && basePathNamespace.startsWith(fullNamespace + ':')) {
-		console.log(`Reverse match found! Base path: ${cleanBasePath}, remaining namespace: ""`);
 		return { matchedBasePath: cleanBasePath, remainingNamespace: "" };
 	}
 
 	// 4. Check if the base path contains the full namespace
 	if (basePathNamespace && basePathNamespace.includes(fullNamespace)) {
-		console.log(`Contained match found! Base path: ${cleanBasePath}, remaining namespace: ""`);
 		return { matchedBasePath: cleanBasePath, remainingNamespace: "" };
 	}
 
@@ -160,7 +153,7 @@ function findExactMatch(fullNamespace: string, basePathNamespace: string, cleanB
  * Attempts to find partial matches between namespace parts and base path parts.
  * Returns the match result or null if no match is found.
  */
-function findPartialMatch(namespaceParts: string[], basePath: string, excludedDirectoryNames: string[]): { matchedBasePath: string, remainingNamespace: string } | null {
+function findPartialNamespaceMatch(namespaceParts: string[], basePath: string, excludedDirectoryNames: string[]): { matchedBasePath: string, remainingNamespace: string } | null {
 	const cleanBasePath = basePath.replace(/\/+$/, '');
 	const basePathParts = cleanBasePath.split('/').filter(part => part && !excludedDirectoryNames.includes(part.toLowerCase()));
 
@@ -176,7 +169,6 @@ function findPartialMatch(namespaceParts: string[], basePath: string, excludedDi
 
 	if (matchedParts > 0) {
 		const remainingNamespace = namespaceParts.slice(matchedParts).join(':');
-		console.log(`Partial match found! Base path: ${cleanBasePath}, matched parts: ${matchedParts}, remaining namespace: ${remainingNamespace}`);
 		return { matchedBasePath: cleanBasePath, remainingNamespace };
 	}
 
@@ -187,7 +179,7 @@ function findPartialMatch(namespaceParts: string[], basePath: string, excludedDi
  * Attempts to find unordered matches between namespace parts and base path parts.
  * Returns the match result or null if no match is found.
  */
-function findUnorderedMatch(namespaceParts: string[], basePath: string, excludedDirectoryNames: string[]): { matchedBasePath: string, remainingNamespace: string } | null {
+function findUnorderedNamespaceMatch(namespaceParts: string[], basePath: string, excludedDirectoryNames: string[]): { matchedBasePath: string, remainingNamespace: string } | null {
 	const cleanBasePath = basePath.replace(/\/+$/, '');
 	const basePathParts = cleanBasePath.split('/').filter(part => part && !excludedDirectoryNames.includes(part.toLowerCase()));
 	const basePathPartsLower = basePathParts.map(part => part.toLowerCase());
@@ -205,7 +197,6 @@ function findUnorderedMatch(namespaceParts: string[], basePath: string, excluded
 
 	if (matchedNamespaceParts.length > 0) {
 		const remainingNamespace = unmatchedNamespaceParts.join(':');
-		console.log(`Partial unordered match found! Base path: ${cleanBasePath}, matched parts: ${matchedNamespaceParts.join(':')}, remaining namespace: ${remainingNamespace}`);
 		return { matchedBasePath: cleanBasePath, remainingNamespace };
 	}
 
@@ -222,327 +213,301 @@ function parseComponentNamespace(fullNamespace: string, basePaths: string[]): {
 } {
 	const { excludedDirectoryNames } = getConfiguredPaths();
 
-	// Convert namespace format (e.g., "Content:Menu") to path format (e.g., "Content/Menu")
 	const namespaceParts = fullNamespace.split(':');
 
-	// Try to match with base paths - first try exact matches
 	for (const basePath of basePaths) {
 		const cleanBasePath = basePath.replace(/\/+$/, '');
 		const basePathNamespace = basePathToNamespace(cleanBasePath, excludedDirectoryNames);
 		
-		// Try to find exact matches first
-		const exactMatch = findExactMatch(fullNamespace, basePathNamespace, cleanBasePath);
+		const exactMatch = findExactNamespaceMatch(fullNamespace, basePathNamespace, cleanBasePath);
 		if (exactMatch) {
 			return exactMatch;
 		}
 	}
 
-	// Try to match partial paths (for more complex directory structures)
 	for (const basePath of basePaths) {
-		// Try to match parts in order
-		const partialMatch = findPartialMatch(namespaceParts, basePath, excludedDirectoryNames);
+		const partialMatch = findPartialNamespaceMatch(namespaceParts, basePath, excludedDirectoryNames);
 		if (partialMatch) {
 			return partialMatch;
 		}
 
-		// Try to match parts in any order
-		const unorderedMatch = findUnorderedMatch(namespaceParts, basePath, excludedDirectoryNames);
+		const unorderedMatch = findUnorderedNamespaceMatch(namespaceParts, basePath, excludedDirectoryNames);
 		if (unorderedMatch) {
 			return unorderedMatch;
 		}
 	}
 
-	// If no match found, return the full namespace
-	console.log(`No match found, using full namespace: ${fullNamespace}`);
 	return { matchedBasePath: null, remainingNamespace: fullNamespace };
 }
 
-// Find component files based on the cursor position
-async function findComponentFiles(document: vscode.TextDocument, position: vscode.Position): Promise<{
-	fullNamespace: string,
-	componentName: string,
-	phpFiles: vscode.Uri[],
-	twigFiles: vscode.Uri[]
-} | undefined> {
-	const line = document.lineAt(position.line).text;
-	console.log(`Clicked line: ${line}`);
+interface ComponentMatch {
+	fullNamespace: string;
+	componentName: string;
+	namespaceStart: number;
+	namespaceEnd: number;
+	componentStart: number;
+	componentEnd: number;
+}
 
+interface ComponentFiles {
+	fullNamespace: string;
+	componentName: string;
+	phpFiles: vscode.Uri[];
+	twigFiles: vscode.Uri[];
+}
+
+/**
+ * Detects if the cursor is on a Twig component and extracts its parts
+ */
+function detectComponentAtPosition(document: vscode.TextDocument, position: vscode.Position): ComponentMatch | undefined {
+	const line = document.lineAt(position.line).text;
 	const match = TWIG_COMPONENT_NAMESPACE_REGEX.exec(line);
 
 	if (!match) {
-		console.log('No component tag match found in line');
 		return undefined;
 	}
 
-	console.log(`Component match: ${JSON.stringify(match)}`);
-
-	// Get the positions of both namespace and component name
-	const namespaceStart = line.indexOf(match[1], match.index + 6); // 6 is the length of "<twig:"
+	const startIndex = line.indexOf('<twig:') + '<twig:'.length;
+	const namespaceStart = line.indexOf(match[1], startIndex);
 	const namespaceEnd = namespaceStart + match[1].length;
-
-	const componentStart = line.indexOf(match[2], namespaceEnd + 1); // +1 for the colon
+	const componentStart = line.indexOf(match[2], namespaceEnd + 1);
 	const componentEnd = componentStart + match[2].length;
 
-	console.log(`Namespace position: ${namespaceStart}-${namespaceEnd}, Component position: ${componentStart}-${componentEnd}, cursor position: ${position.character}`);
-
-	// Check if cursor is on either the namespace or component name
 	const isOnNamespace = position.character >= namespaceStart && position.character <= namespaceEnd;
 	const isOnComponent = position.character >= componentStart && position.character <= componentEnd;
 
 	if (!isOnNamespace && !isOnComponent) {
-		console.log('Cursor not on namespace or component name');
 		return undefined;
 	}
 
-	// Parse the component parts
-	const fullNamespace = match[1];
-	const componentName = match[2];
+	return {
+		fullNamespace: match[1],
+		componentName: match[2],
+		namespaceStart,
+		namespaceEnd,
+		componentStart,
+		componentEnd
+	};
+}
 
-	console.log(`Full namespace: ${fullNamespace}, Component name: ${componentName}`);
+/**
+ * Generates possible paths for PHP component files
+ */
+function generatePhpPaths(
+	componentMatch: ComponentMatch,
+	phpResult: { matchedBasePath: string | null; remainingNamespace: string },
+	phpComponentPaths: string[]
+): string[] {
+	const paths: string[] = [];
 
-	// Get configured paths
-	const { phpBasePaths, phpComponentPaths, twigBasePaths, twigTemplatePaths } = getConfiguredPaths();
-
-	console.log(`PHP base paths: ${JSON.stringify(phpBasePaths)}`);
-	console.log(`PHP component paths: ${JSON.stringify(phpComponentPaths)}`);
-	console.log(`Twig base paths: ${JSON.stringify(twigBasePaths)}`);
-	console.log(`Twig template paths: ${JSON.stringify(twigTemplatePaths)}`);
-
-	// Parse the namespace and match with base paths
-	const phpResult = parseComponentNamespace(fullNamespace, phpBasePaths);
-	const twigResult = parseComponentNamespace(fullNamespace, twigBasePaths);
-
-	console.log(`PHP result: ${JSON.stringify(phpResult)}`);
-	console.log(`Twig result: ${JSON.stringify(twigResult)}`);
-
-	// Search for the component in possible locations
-	const workspaceFolders = vscode.workspace.workspaceFolders;
-	if (!workspaceFolders) {
-		console.log('No workspace folders found');
-		return undefined;
-	}
-
-	// Generate all possible paths
-	const phpPossiblePaths: string[] = [];
-	const twigPossiblePaths: string[] = [];
-
-	// Add PHP paths
 	if (phpResult.matchedBasePath) {
 		for (const componentPath of phpComponentPaths) {
 			const resolvedPath = path.join(
 				phpResult.matchedBasePath,
 				componentPath
 					.replace('${namespace}', phpResult.remainingNamespace.replace(/:/g, '/'))
-					.replace('${componentName}', componentName)
+					.replace('${componentName}', componentMatch.componentName)
 			);
-			phpPossiblePaths.push(resolvedPath);
-			console.log(`Added PHP path: ${resolvedPath}`);
+			paths.push(resolvedPath);
+		}
+	} else {
+		const { phpBasePaths } = getConfiguredPaths();
+		for (const basePath of phpBasePaths) {
+			for (const componentPath of phpComponentPaths) {
+				const resolvedPath = path.join(
+					basePath,
+					componentPath
+						.replace('${namespace}', componentMatch.fullNamespace.replace(/:/g, '/'))
+						.replace('${componentName}', componentMatch.componentName)
+				);
+				paths.push(resolvedPath);
+			}
 		}
 	}
 
-	// Add Twig paths
+	return paths;
+}
+
+/**
+ * Generates possible paths for Twig template files
+ */
+function generateTwigPaths(
+	componentMatch: ComponentMatch,
+	twigResult: { matchedBasePath: string | null; remainingNamespace: string },
+	twigTemplatePaths: string[],
+	phpResult: { matchedBasePath: string | null; remainingNamespace: string }
+): string[] {
+	const paths: string[] = [];
+
+	// Add standard template paths
 	if (twigResult.matchedBasePath) {
 		for (const templatePath of twigTemplatePaths) {
 			const resolvedPath = path.join(
 				twigResult.matchedBasePath,
 				templatePath
 					.replace('${namespace}', twigResult.remainingNamespace.replace(/:/g, '/'))
-					.replace('${componentName}', componentName)
+					.replace('${componentName}', componentMatch.componentName)
 			);
-			twigPossiblePaths.push(resolvedPath);
-			console.log(`Added Twig path: ${resolvedPath}`);
+			paths.push(resolvedPath);
 		}
 	}
 
-	// If no base path matched, try all combinations
-	if (!phpResult.matchedBasePath && !twigResult.matchedBasePath) {
-		console.log('No base path matched, trying all combinations');
-		// For PHP
-		for (const basePath of phpBasePaths) {
-			for (const componentPath of phpComponentPaths) {
-				const resolvedPath = path.join(
-					basePath,
-					componentPath
-						.replace('${namespace}', fullNamespace.replace(/:/g, '/'))
-						.replace('${componentName}', componentName)
-				);
-				phpPossiblePaths.push(resolvedPath);
-				console.log(`Added fallback PHP path: ${resolvedPath}`);
-			}
-		}
-
-		// For Twig
-		for (const basePath of twigBasePaths) {
-			for (const templatePath of twigTemplatePaths) {
-				const resolvedPath = path.join(
-					basePath,
-					templatePath
-						.replace('${namespace}', fullNamespace.replace(/:/g, '/'))
-						.replace('${componentName}', componentName)
-				);
-				twigPossiblePaths.push(resolvedPath);
-				console.log(`Added fallback Twig path: ${resolvedPath}`);
-			}
-		}
-	}
-
-	// Add direct template paths for the specific case of templates/components/[namespace]/[componentName].html.twig
-	// This is a special case for the user's specific configuration
+	// Add direct template paths
+	const { twigBasePaths } = getConfiguredPaths();
 	for (const basePath of twigBasePaths) {
 		const directPath = path.join(
 			basePath,
 			'components',
-			fullNamespace.replace(/:/g, '/'),
-			`${componentName}.html.twig`
+			componentMatch.fullNamespace.replace(/:/g, '/'),
+			`${componentMatch.componentName}.html.twig`
 		);
-		twigPossiblePaths.push(directPath);
-		console.log(`Added direct Twig path: ${directPath}`);
+		paths.push(directPath);
 	}
 
-	// Try additional template path patterns for complex structures
-	// This is a fallback for cases where the standard patterns don't work
-	if (twigPossiblePaths.length === 0 || (twigResult.matchedBasePath === null && phpResult.matchedBasePath !== null)) {
-		console.log('Trying additional template path patterns');
-
-		// Try to use the PHP namespace result to find the template
+	// Try additional patterns if needed
+	if (paths.length === 0 || (twigResult.matchedBasePath === null && phpResult.matchedBasePath !== null)) {
 		if (phpResult.matchedBasePath) {
-			// Extract the relevant part from the PHP base path
 			const phpBasePart = phpResult.matchedBasePath.replace(/^src\//, '');
-			console.log(`Extracted PHP base part: ${phpBasePart}`);
-
-			// Try to find matching template paths
 			for (const basePath of twigBasePaths) {
-				// Check if this base path might contain our component
-				if (basePath.includes(phpBasePart) ||
-					basePath.toLowerCase().includes(phpBasePart.toLowerCase())) {
-
-					console.log(`Found potential matching template base path: ${basePath}`);
-
+				if (basePath.includes(phpBasePart) || basePath.toLowerCase().includes(phpBasePart.toLowerCase())) {
 					for (const templatePath of twigTemplatePaths) {
 						const resolvedPath = path.join(
 							basePath,
 							templatePath
 								.replace('${namespace}', phpResult.remainingNamespace.replace(/:/g, '/'))
-								.replace('${componentName}', componentName)
+								.replace('${componentName}', componentMatch.componentName)
 						);
-						twigPossiblePaths.push(resolvedPath);
-						console.log(`Added additional Twig path: ${resolvedPath}`);
+						paths.push(resolvedPath);
 					}
 				}
 			}
 		}
 
-		// Try with just the component name (for cases where the template is directly in the namespace directory)
+		// Try simplified paths
 		for (const basePath of twigBasePaths) {
-			if (basePath.includes(fullNamespace.replace(/:/g, '/')) ||
-				basePath.toLowerCase().includes(fullNamespace.replace(/:/g, '/').toLowerCase())) {
-
-				const resolvedPath = path.join(basePath, `${componentName}.html.twig`);
-				twigPossiblePaths.push(resolvedPath);
-				console.log(`Added simplified Twig path: ${resolvedPath}`);
+			if (basePath.includes(componentMatch.fullNamespace.replace(/:/g, '/')) ||
+				basePath.toLowerCase().includes(componentMatch.fullNamespace.replace(/:/g, '/').toLowerCase())) {
+				paths.push(path.join(basePath, `${componentMatch.componentName}.html.twig`));
 			}
 		}
 	}
 
-	console.log(`Checking ${phpPossiblePaths.length + twigPossiblePaths.length} possible paths`);
+	return paths;
+}
 
-	// Check all possible paths and find existing files
-	const foundPhpFiles: vscode.Uri[] = [];
-	const foundTwigFiles: vscode.Uri[] = [];
+/**
+ * Searches for files in the workspace
+ */
+function findFilesInWorkspace(phpPaths: string[], twigPaths: string[]): { phpFiles: vscode.Uri[]; twigFiles: vscode.Uri[] } {
+	const workspaceFolders = vscode.workspace.workspaceFolders;
+	if (!workspaceFolders) {
+		return { phpFiles: [], twigFiles: [] };
+	}
+
+	const phpFiles: vscode.Uri[] = [];
+	const twigFiles: vscode.Uri[] = [];
 
 	for (const workspaceFolder of workspaceFolders) {
 		// Check PHP files
-		for (const possiblePath of phpPossiblePaths) {
+		for (const possiblePath of phpPaths) {
 			const filePath = path.join(workspaceFolder.uri.fsPath, possiblePath);
-			console.log(`Checking PHP path: ${filePath}`);
-
 			if (fs.existsSync(filePath)) {
-				console.log(`Found PHP file at: ${filePath}`);
-				foundPhpFiles.push(vscode.Uri.file(filePath));
+				phpFiles.push(vscode.Uri.file(filePath));
 			}
 		}
 
 		// Check Twig files
-		for (const possiblePath of twigPossiblePaths) {
+		for (const possiblePath of twigPaths) {
 			const filePath = path.join(workspaceFolder.uri.fsPath, possiblePath);
-			console.log(`Checking Twig path: ${filePath}`);
-
 			if (fs.existsSync(filePath)) {
-				console.log(`Found Twig file at: ${filePath}`);
-				foundTwigFiles.push(vscode.Uri.file(filePath));
+				twigFiles.push(vscode.Uri.file(filePath));
 			}
 		}
 	}
 
-	// If we found PHP files but no Twig files, try a more aggressive search
-	if (foundPhpFiles.length > 0 && foundTwigFiles.length === 0) {
-		console.log('Found PHP files but no Twig files, trying more aggressive search');
+	return { phpFiles, twigFiles };
+}
 
-		// Get fallback template directories from configuration
-		const { fallbackTemplateDirs } = getConfiguredPaths();
+/**
+ * Performs an aggressive search for Twig templates when PHP files are found but no templates
+ */
+function performAggressiveTemplateSearch(
+	componentMatch: ComponentMatch,
+	foundPhpFiles: vscode.Uri[]
+): vscode.Uri[] {
+	if (foundPhpFiles.length === 0) {
+		return [];
+	}
 
-		// Try to find the template by searching for the component name in all template directories
-		for (const workspaceFolder of workspaceFolders) {
-			// Check in configured fallback template directories
-			for (const templateDir of fallbackTemplateDirs) {
-				const templateBasePath = path.join(workspaceFolder.uri.fsPath, templateDir);
+	const { fallbackTemplateDirs, twigBasePaths } = getConfiguredPaths();
+	const foundTwigFiles: vscode.Uri[] = [];
 
-				// Skip if the directory doesn't exist
-				if (!fs.existsSync(templateBasePath)) {
-					continue;
+	for (const workspaceFolder of vscode.workspace.workspaceFolders || []) {
+		for (const templateDir of fallbackTemplateDirs) {
+			const templateBasePath = path.join(workspaceFolder.uri.fsPath, templateDir);
+			if (!fs.existsSync(templateBasePath)) {
+				continue;
+			}
+
+			for (const basePath of twigBasePaths) {
+				// Check direct path
+				const possiblePath = path.join(basePath, `${componentMatch.componentName}.html.twig`);
+				const filePath = path.join(workspaceFolder.uri.fsPath, possiblePath);
+				if (fs.existsSync(filePath)) {
+					foundTwigFiles.push(vscode.Uri.file(filePath));
 				}
 
-				// Try to find the template by searching for files with the component name
-				const searchPattern = `**/${componentName}.html.twig`;
-
-				try {
-					// This is a simplified version - in a real implementation, you'd use a proper glob search
-					// For demonstration purposes, we're just showing the concept
-					console.log(`Would search for ${searchPattern} in ${templateBasePath}`);
-
-					// For each twigBasePath, check if there's a file with the component name
-					for (const basePath of twigBasePaths) {
-						const possiblePath = path.join(basePath, `${componentName}.html.twig`);
-						const filePath = path.join(workspaceFolder.uri.fsPath, possiblePath);
-
-						console.log(`Checking additional Twig path: ${filePath}`);
-
-						if (fs.existsSync(filePath)) {
-							console.log(`Found Twig file at: ${filePath}`);
-							foundTwigFiles.push(vscode.Uri.file(filePath));
-						}
-
-						// Check for the specific case of templates/components/[namespace]/[componentName].html.twig
-						const componentsPath = path.join(basePath, 'components', fullNamespace.replace(/:/g, '/'), `${componentName}.html.twig`);
-						const componentsFilePath = path.join(workspaceFolder.uri.fsPath, componentsPath);
-
-						console.log(`Checking specific components path: ${componentsFilePath}`);
-
-						if (fs.existsSync(componentsFilePath)) {
-							console.log(`Found Twig file at: ${componentsFilePath}`);
-							foundTwigFiles.push(vscode.Uri.file(componentsFilePath));
-						}
-					}
-				} catch (error) {
-					console.error(`Error searching for template: ${error}`);
+				// Check components path
+				const componentsPath = path.join(
+					basePath,
+					'components',
+					componentMatch.fullNamespace.replace(/:/g, '/'),
+					`${componentMatch.componentName}.html.twig`
+				);
+				const componentsFilePath = path.join(workspaceFolder.uri.fsPath, componentsPath);
+				if (fs.existsSync(componentsFilePath)) {
+					foundTwigFiles.push(vscode.Uri.file(componentsFilePath));
 				}
 			}
 		}
 	}
 
-	console.log(`Found ${foundPhpFiles.length} PHP files and ${foundTwigFiles.length} Twig files`);
+	return foundTwigFiles;
+}
 
-	// If no files found, return undefined
-	if (foundPhpFiles.length === 0 && foundTwigFiles.length === 0) {
-		console.log('No matching files found');
+/**
+ * Find component files based on the cursor position
+ */
+async function findComponentFiles(document: vscode.TextDocument, position: vscode.Position): Promise<ComponentFiles | undefined> {
+	const componentMatch = detectComponentAtPosition(document, position);
+	if (!componentMatch) {
+		return undefined;
+	}
+
+	const { phpBasePaths, phpComponentPaths, twigBasePaths, twigTemplatePaths } = getConfiguredPaths();
+	const phpResult = parseComponentNamespace(componentMatch.fullNamespace, phpBasePaths);
+	const twigResult = parseComponentNamespace(componentMatch.fullNamespace, twigBasePaths);
+
+	const phpPaths = generatePhpPaths(componentMatch, phpResult, phpComponentPaths);
+	const twigPaths = generateTwigPaths(componentMatch, twigResult, twigTemplatePaths, phpResult);
+
+	const { phpFiles, twigFiles } = findFilesInWorkspace(phpPaths, twigPaths);
+
+	// If we found PHP files but no Twig files, try aggressive search
+	if (phpFiles.length > 0 && twigFiles.length === 0) {
+		const additionalTwigFiles = performAggressiveTemplateSearch(componentMatch, phpFiles);
+		twigFiles.push(...additionalTwigFiles);
+	}
+
+	if (phpFiles.length === 0 && twigFiles.length === 0) {
 		return undefined;
 	}
 
 	return {
-		fullNamespace,
-		componentName,
-		phpFiles: foundPhpFiles,
-		twigFiles: foundTwigFiles
+		fullNamespace: componentMatch.fullNamespace,
+		componentName: componentMatch.componentName,
+		phpFiles,
+		twigFiles
 	};
 }
 
