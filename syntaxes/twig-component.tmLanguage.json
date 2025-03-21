@@ -11,14 +11,13 @@
   "repository": {
     "twig-component-tag": {
       "name": "meta.tag.twig-component",
-      "begin": "(<)(twig)(:)([\\w\\-]+)(:)([\\w\\-]+)",
+      "begin": "(<)(twig)(:)((?:[\\w\\-]+(?::[\\w\\-]+)*)?):([\\w\\-]+)",
       "beginCaptures": {
         "1": { "name": "punctuation.definition.tag.begin.html" },
         "2": { "name": "entity.name.tag.twig-component.keyword.twig" },
         "3": { "name": "punctuation.separator.namespace.twig-component" },
         "4": { "name": "entity.name.tag.twig-component.namespace" },
-        "5": { "name": "punctuation.separator.namespace.twig-component" },
-        "6": { "name": "entity.name.tag.twig-component.name" }
+        "5": { "name": "entity.name.tag.twig-component.name" }
       },
       "end": "(>)|(/?>)",
       "endCaptures": {
