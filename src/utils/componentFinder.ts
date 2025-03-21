@@ -122,7 +122,6 @@ function buildPossiblePaths(basePath: string, componentPaths: string[], componen
 function findExistingFiles(possiblePaths: string[], workspaceFolders: readonly vscode.WorkspaceFolder[]): vscode.Uri[] {
 	const foundFiles: vscode.Uri[] = [];
 
-
 	for (const workspaceFolder of workspaceFolders) {
 
 		for (const possiblePath of possiblePaths) {
