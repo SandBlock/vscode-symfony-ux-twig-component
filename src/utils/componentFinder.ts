@@ -52,7 +52,6 @@ function extractComponentFromDocument(document: vscode.TextDocument, position: v
 }
 
 function processComponentPath(fullComponentPath: string): ComponentInfo {
-	// Split into parts and get component name
 	const parts = fullComponentPath.split(':');
 	const componentName = parts.pop() || '';
 	const remainingNamespace = parts.join('/');
@@ -65,66 +64,26 @@ function processComponentPath(fullComponentPath: string): ComponentInfo {
 }
 
 function findMatchingBasePath(fullComponentPath: string, basePaths: string[], excludedDirectoryNames: string[]): PossiblePath[] {
-	// vscode.window.showInformationMessage(`Searching for matching base path for: ${fullComponentPath}`);
-	const componentParts = fullComponentPath.split(':');
-	const firstComponentPart = componentParts[0];
-
 	const possiblePaths: PossiblePath[] = [];
 
-	// Find exact matching base path
 	for (const basePath of basePaths) {
-		// Get the last part of the base path
 		const basePathParts = basePath.split('/');
-		// const lastPart = basePathParts[basePathParts.length - 1];
 
 		const filteredBasePathParts = basePathParts.filter(part => !excludedDirectoryNames.includes(part.toLowerCase()));
 		const filteredBasePath = filteredBasePathParts.join(':');
+
 		if (filteredBasePath != '' && fullComponentPath.startsWith(filteredBasePath)) {
 			const charactersToRemove = filteredBasePathParts.length == 1 ? filteredBasePath.length + 1 : filteredBasePath.length;
-			const remainingNamespace = fullComponentPath.slice(charactersToRemove); // include : at the end
-			//@todo implement best match (e.g. longest basePath that matches)
+			const remainingNamespace = fullComponentPath.slice(charactersToRemove); 
 			possiblePaths.push({ basePath: basePath, namespace:remainingNamespace });
 		}
-
-		// Skip if the last part is in excluded directories
-		// if (!lastPart || excludedDirectoryNames.includes(lastPart.toLowerCase())) {
-		// 	// vscode.window.showInformationMessage(`Skipping ${basePath} - excluded directory`);
-		// 	continue;
-		// }
-
-		// // Only match if the last part of the base path exactly matches the first part of the component
-		// if (lastPart === firstComponentPart) {  // Removed toLowerCase() for exact matching
-		// 	// vscode.window.showInformationMessage(`Found match! ${basePath} matches with ${firstComponentPart}`);
-		// 	return {
-		// 		foundBasePath: basePath,
-		// 		remainingNamespace: componentParts.slice(1).join(':')
-		// 	};
-		// } else {
-		// 	// vscode.window.showInformationMessage(`No match: "${lastPart}" !== "${firstComponentPart}"`);
-		// }
 	}
+
 	if (possiblePaths.length == 0) {
 		for (const basePath of basePaths) {
 			possiblePaths.push({ basePath: basePath, namespace: fullComponentPath });
 		}
 	}
-
-	// // Try matching with the first part of the base path
-	// for (const basePath of basePaths) {
-	// 	const basePathParts = basePath.split('/');
-	// 	const firstPart = basePathParts[basePathParts.length - 1];
-
-	// 	if (firstPart === firstComponentPart) {  // Removed toLowerCase() for exact matching
-	// 		vscode.window.showInformationMessage(`Found match with first part! ${basePath} matches with ${firstComponentPart}`);
-	// 		return {
-	// 			foundBasePath: basePath,
-	// 			remainingNamespace: componentParts.slice(1).join(':')
-	// 		};
-	// 	}
-	// }
-
-	// vscode.window.showInformationMessage(`No matching base path found for ${fullComponentPath}`);
-	// return { foundBasePath: null, remainingNamespace: fullComponentPath };
 	return possiblePaths;
 }
 
@@ -133,20 +92,6 @@ function generatePossiblePaths(
 	componentPaths: string[],
 	componentName: string
 ): string[] {
-	// const namespaceParts = remainingNamespace.split(':');
-	// namespaceParts.pop() || '';
-	// remainingNamespace = namespaceParts.join('/');
-
-	// if (basePath != null) {
-	// 	return buildPossiblePaths(basePath, componentPaths, componentName, remainingNamespace);
-	// }
-	
-	// const paths: string[] = [];
-	// vscode.window.showInformationMessage(`Configured base paths: ${configuredBasePaths.join(', ')}`);
-	// for (const configuredBasePath of configuredBasePaths) {
-	// 	paths.push(...buildPossiblePaths(configuredBasePath, componentPaths, componentName, remainingNamespace));
-	// }
-
 	const paths: string[] = [];
 	for (const possiblePath of possiblePaths) {
 		const namespaceParts = possiblePath.namespace.split(':');
@@ -166,7 +111,6 @@ function buildPossiblePaths(basePath: string, componentPaths: string[], componen
 			.replace(/\/+/g, '/') // Clean up double slashes
 			.replace(/^\//, ''); // Remove leading slash
 
-		// If the path has empty namespace segments, clean them up
 		resolvedPath = resolvedPath.replace(/\/\//g, '/');
 
 		const finalPath = path.join(basePath, resolvedPath);
@@ -204,29 +148,21 @@ export async function findComponentFiles(document: vscode.TextDocument, position
 		return undefined;
 	}
 
-
 	// Step 2: Process component path
 	const { componentName, remainingNamespace } = processComponentPath(fullComponentPath);
 
 	// Step 3: Get configured paths
 	const { phpBasePaths, phpComponentPaths, twigBasePaths, twigTemplatePaths, excludedDirectoryNames } = getConfiguredPaths();
-	// const phpMatch = findMatchingBasePath(fullComponentPath, phpBasePaths, excludedDirectoryNames);
+	const phpMatch = findMatchingBasePath(fullComponentPath, phpBasePaths, excludedDirectoryNames);
 	const twigMatch = findMatchingBasePath(fullComponentPath, twigBasePaths, excludedDirectoryNames);
-const phpMatch = [];
 	// Step 5: Generate possible paths
-	// const phpPossiblePaths = phpMatch.foundBasePath
-	// 	? generatePossiblePaths(phpMatch.foundBasePath, phpComponentPaths, componentName, phpMatch.remainingNamespace, phpBasePaths)
-	// 	: [];
-	const phpPossiblePaths: string[] = [];
-
-	// const twigPossiblePaths = generatePossiblePaths(twigMatch.foundBasePath, twigTemplatePaths, componentName, twigMatch.remainingNamespace, twigBasePaths);
+	const phpPossiblePaths: string[] = generatePossiblePaths(phpMatch, phpComponentPaths, componentName);
 	const twigPossiblePaths: string[] = generatePossiblePaths(twigMatch, twigTemplatePaths, componentName);
-	vscode.window.showInformationMessage(`Twig possible paths: ${twigPossiblePaths.join(', ')}`);
 
 	// Step 6: Find existing files
 	const workspaceFolders = vscode.workspace.workspaceFolders;
 	if (!workspaceFolders) {
-		// vscode.window.showInformationMessage('No workspace folders found');
+		vscode.window.showInformationMessage('No workspace folders found');
 		return undefined;
 	}
 
@@ -237,8 +173,6 @@ const phpMatch = [];
 		vscode.window.showInformationMessage('No matching files found');
 		return undefined;
 	}
-
-	// vscode.window.showInformationMessage(`Found ${foundPhpFiles.length} PHP files and ${foundTwigFiles.length} Twig files`);
 
 	return {
 		fullNamespace: remainingNamespace,
