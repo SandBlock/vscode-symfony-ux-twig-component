@@ -122,8 +122,12 @@ function generatePossiblePaths(
 	componentName: string,
 	remainingNamespace: string
 ): string[] {
-	remainingNamespace = remainingNamespace.replace(":", "/");
-	remainingNamespace = remainingNamespace.replace(`/${componentName}`, '');
+	// remainingNamespace = remainingNamespace.replaceAll(":", "/");
+	// remainingNamespace = remainingNamespace.replace(`/${componentName}`, '');
+	const namespaceParts = remainingNamespace.split(':');
+	namespaceParts.pop() || '';
+	remainingNamespace = namespaceParts.join('/');
+	vscode.window.showInformationMessage(`Remaining namespace: ${remainingNamespace} componentName: ${componentName}`);
 
 	const paths = componentPaths.map(componentPath => {
 		let resolvedPath = componentPath
