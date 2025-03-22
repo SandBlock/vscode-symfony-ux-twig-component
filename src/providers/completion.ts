@@ -51,10 +51,13 @@ export class TwigComponentCompletionProvider implements vscode.CompletionItemPro
 
         // Create completion items
         return matchingComponents.map(component => {
-            const item = new vscode.CompletionItem(component.fullName, vscode.CompletionItemKind.Snippet);
+            const item = new vscode.CompletionItem(
+                `${component.fullName} [${component.filePath}]`,
+                vscode.CompletionItemKind.Class
+            );
             item.detail = 'Twig Component';
             item.insertText = component.fullName;
-            item.documentation = new vscode.MarkdownString(`Component file: ${component.filePath}`);
+            item.filterText = component.fullName; // This ensures filtering works on the component name only
             return item;
         });
     }
