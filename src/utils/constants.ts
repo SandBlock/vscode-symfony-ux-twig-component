@@ -26,7 +26,6 @@ export const CONFIG_SECTION = 'symfony-ux-twig-component';
 // Configuration keys
 export const CONFIG_KEYS = {
     ENABLED: 'symfony-ux-twig-component.enabled',
-    FORMATTING_STYLE: 'symfony-ux-twig-component.formattingStyle',
     COMPONENT_PATHS: 'symfony-ux-twig-component.componentPaths',
     PHP_BASE_PATHS: 'symfony-ux-twig-component.phpBasePaths',
     PHP_COMPONENT_PATHS: 'symfony-ux-twig-component.phpComponentPaths',
@@ -34,21 +33,5 @@ export const CONFIG_KEYS = {
     TWIG_TEMPLATE_PATHS: 'symfony-ux-twig-component.twigTemplatePaths',
     EXCLUDED_DIRECTORY_NAMES: 'symfony-ux-twig-component.excludedDirectoryNames',
     FALLBACK_TEMPLATE_DIRS: 'symfony-ux-twig-component.fallbackTemplateDirs',
-    DEBUG: 'symfony-ux-twig-component.debug',
-    RUN_LAST: 'symfony-ux-twig-component.runLast',
-    TIMEOUT: 'symfony-ux-twig-component.timeout',
-    MAX_LINE_LENGTH: 'symfony-ux-twig-component.maxLineLength',
-    MIN_ATTRIBUTES_MULTILINE: 'symfony-ux-twig-component.minAttributesMultiline'
-};
-
-// Formatting styles
-export const FORMATTING_STYLES = {
-    MULTILINE: 'multiline',
-    SINGLE_LINE: 'singleLine'
-};
-
-// Default values
-export const DEFAULT_VALUES = {
-    MAX_LINE_LENGTH: 120,
-    MIN_ATTRIBUTES_MULTILINE: 2
+    DEBUG: 'symfony-ux-twig-component.debug'
 }; 

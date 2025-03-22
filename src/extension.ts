@@ -1,7 +1,5 @@
 import * as vscode from 'vscode';
-import { registerFormattingCommands } from './commands/formatting';
 import { registerNavigationCommands } from './commands/navigation';
-import { registerFormattingProviders } from './providers/formattingProvider';
 import { debugLog, registerConfigChangeListener } from './utils/config';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -23,18 +21,6 @@ export function activate(context: vscode.ExtensionContext) {
 		
 		const navigationCommands = registerNavigationCommands(context);
 		navigationCommands.forEach(cmd => {
-			commandAndProviderDisposables.add(cmd);
-			context.subscriptions.push(cmd);
-		});
-		
-		const formattingProviders = registerFormattingProviders(context);
-		formattingProviders.forEach(provider => {
-			commandAndProviderDisposables.add(provider);
-			context.subscriptions.push(provider);
-		});
-		
-		const formattingCommands = registerFormattingCommands(context);
-		formattingCommands.forEach(cmd => {
 			commandAndProviderDisposables.add(cmd);
 			context.subscriptions.push(cmd);
 		});

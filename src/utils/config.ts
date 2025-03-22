@@ -1,27 +1,11 @@
 import * as vscode from 'vscode';
-import { CONFIG_SECTION, CONFIG_KEYS, DEFAULT_COMPONENT_PATHS, FORMATTING_STYLES, DEFAULT_VALUES } from './constants';
+import { CONFIG_KEYS, CONFIG_SECTION, DEFAULT_COMPONENT_PATHS } from './constants';
 
 /**
  * Get the extension configuration
  */
 export function getConfig(): vscode.WorkspaceConfiguration {
 	return vscode.workspace.getConfiguration(CONFIG_SECTION);
-}
-
-/**
- * Get formatting configuration
- */
-export function getFormattingConfig() {
-	const config = getConfig();
-	
-	return {
-		enabled: config.get<boolean>(CONFIG_KEYS.ENABLED, true),
-		formattingStyle: config.get<string>(CONFIG_KEYS.FORMATTING_STYLE, FORMATTING_STYLES.MULTILINE),
-		runLast: config.get<boolean>(CONFIG_KEYS.RUN_LAST, true),
-		timeout: config.get<number>(CONFIG_KEYS.TIMEOUT, 300),
-		maxLineLength: config.get<number>(CONFIG_KEYS.MAX_LINE_LENGTH, DEFAULT_VALUES.MAX_LINE_LENGTH),
-		minAttributesMultiline: config.get<number>(CONFIG_KEYS.MIN_ATTRIBUTES_MULTILINE, DEFAULT_VALUES.MIN_ATTRIBUTES_MULTILINE)
-	};
 }
 
 /**
@@ -50,19 +34,11 @@ export function debugLog(message: string, ...args: any[]): void {
 }
 
 /**
- * Update a configuration setting
- */
-export async function updateConfig<T>(key: string, value: T): Promise<void> {
-	const config = getConfig();
-	await config.update(key, value, vscode.ConfigurationTarget.Global);
-}
-
-/**
- * Register configuration change listener
+ * Register a listener for configuration changes
  */
 export function registerConfigChangeListener(callback: () => void): vscode.Disposable {
 	return vscode.workspace.onDidChangeConfiguration(event => {
-		if (event.affectsConfiguration(CONFIG_SECTION) || event.affectsConfiguration('symfonyUxTwigComponent')) {
+		if (event.affectsConfiguration(CONFIG_SECTION)) {
 			callback();
 		}
 	});
