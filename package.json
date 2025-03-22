@@ -2,6 +2,7 @@
   "name": "vscode-symfony-ux-twig-component",
   "displayName": "VSCode Symfony UX Twig Component",
   "description": "References, highlights, and formats Twig components for Symfony UX",
+  "publisher": "SanderVerschoor",
   "version": "0.0.7",
   "repository": {
     "type": "git",
