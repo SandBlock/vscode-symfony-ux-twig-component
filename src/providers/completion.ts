@@ -41,7 +41,7 @@ export class TwigComponentCompletionProvider implements vscode.CompletionItemPro
 
         const matchingComponents = components.filter(component =>
             component.name.includes(searchTerm) ||
-            component.fullName.includes(searchTerm)
+            component.componentPath.includes(searchTerm)
         );
 
         return matchingComponents.map(component => {
