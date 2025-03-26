@@ -38,7 +38,7 @@ export class TwigComponentCompletionProvider implements vscode.CompletionItemPro
         const { twigBasePaths, twigTemplatePaths } = getConfiguredPaths();
 
         const components = await this.findAllComponents(workspaceFolder, twigBasePaths, twigTemplatePaths);
-
+        vscode.window.showInformationMessage(JSON.stringify(components));
         const matchingComponents = components.filter(component =>
             component.name.includes(searchTerm) ||
             component.componentPath.includes(searchTerm)
@@ -79,7 +79,7 @@ export class TwigComponentCompletionProvider implements vscode.CompletionItemPro
 
             if (entry.isDirectory()) {
                 await this.scanDirectory(fullPath, basePath, templatePaths, components);
-            } else if (entry.name.endsWith('.html.twig')) {
+            } else if (entry.name.endsWith('.twig')) {
                 const componentInfo = this.createComponentInfo(fullPath, basePath, templatePaths);
                 if (componentInfo) {
                     components.push(componentInfo);
@@ -89,7 +89,7 @@ export class TwigComponentCompletionProvider implements vscode.CompletionItemPro
     }
 
     private createComponentInfo(filePath: string, basePath: string, templatePaths: string[]): ComponentInfo | undefined {
-        const withoutExt = filePath.replace('.html.twig', '');
+        const withoutExt = filePath.replace('.html.twig', '').replace('.twig', '');
 
         const basePathParts = basePath.split(path.sep);
         const allParts = withoutExt.split(path.sep);
@@ -103,51 +103,57 @@ export class TwigComponentCompletionProvider implements vscode.CompletionItemPro
 
         const namespace = componentParts.slice(0, -1).join(':');
         const fullName = namespace ? `${namespace}:${componentName}` : componentName;
-        const componentPath = this.filterComponentPath(fullName, templatePaths);
+        // const componentPath = this.filterComponentPath(fullName, templatePaths);
+        const componentPath = this.filterComponentPath(namespace, componentName, filePath, templatePaths);
+
+        if (!componentPath) {
+            return undefined;
+        }
 
         return {
             name: componentName,
-            fullName,
-            componentPath,
-            filePath
+            fullName: fullName,
+            componentPath: componentPath,
+            filePath: filePath
         };
     }
 
-    private filterComponentPath(fullName: string, templatePaths: string[]): string {
-        let bestMatch = {
-            path: fullName,
-            score: -1
-        };
-
-        const namespaceParts = fullName.split(":");
+    private filterComponentPath(namespace: string, componentName: string, filePath: string, templatePaths: string[]): string | null {
 
         for (const templatePath of templatePaths) {
-            const templatePathParts = templatePath.split("/");
+            const cutTemplatePath = templatePath.substring(0, templatePath.indexOf('${'));
+            const filteredNamespace = namespace.replaceAll(':', '/').substring(cutTemplatePath.length);
+            const filledNamespace = templatePath
+                .replace('${namespace}', filteredNamespace)
+                .replace('${componentName}', componentName)
+                .replaceAll(':', '/');
             
-            let matchScore = 0;
-            let matchedParts = 0;
-            
-            const realPathParts = templatePathParts.filter(part => !['${namespace}', '${componentName}'].includes(part));
-            
-            for (let i = 0; i < namespaceParts.length && i < realPathParts.length; i++) {
-                if (namespaceParts[i].toLowerCase() === realPathParts[i].toLowerCase()) {
-                    matchedParts++;
-                }
-            }
-            
-            matchScore = (matchedParts * 10) - 
-                        Math.abs(realPathParts.length - namespaceParts.length) +
-                        (matchedParts > 0 ? 5 : 0);
+            if (filePath.includes(filledNamespace)) {
+                // return filledNamespace.replaceAll('/', ':');
 
-            if (matchScore > bestMatch.score) {
-                const remainingParts = namespaceParts.slice(matchedParts);
-                bestMatch = {
-                    path: remainingParts.join(":"),
-                    score: matchScore
-                };
+                const filledNamespaceParts = filledNamespace.split('/');
+                const templatePathParts = templatePath.split('/');
+
+                let remainingParts = [];
+                for (const filledNamespacePart of filledNamespaceParts) {
+                    let found = false;
+                    for (const templatePathPart of templatePathParts) {
+                        if (filledNamespacePart === templatePathPart) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        remainingParts.push(filledNamespacePart);
+                    }
+                }
+
+                return remainingParts.join(':')
+                    .replace('.html.twig', '')
+                    .replace('.twig', '');
             }
         }
 
-        return bestMatch.path;
+        return null;
     }
 } 
