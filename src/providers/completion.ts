@@ -1,16 +1,16 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { ComponentCache, ComponentInfo } from '../utils/componentCache';
 import { getConfiguredPaths } from '../utils/config';
 
-interface ComponentInfo {
-    name: string;
-    fullName: string;
-    componentPath: string;
-    filePath: string;
-}
-
 export class TwigComponentCompletionProvider implements vscode.CompletionItemProvider {
+    private componentCache: ComponentCache;
+
+    constructor() {
+        this.componentCache = ComponentCache.getInstance();
+    }
+
     async provideCompletionItems(
         document: vscode.TextDocument,
         position: vscode.Position,
@@ -36,9 +36,8 @@ export class TwigComponentCompletionProvider implements vscode.CompletionItemPro
         }
 
         const { twigBasePaths, twigTemplatePaths } = getConfiguredPaths();
-
-        const components = await this.findAllComponents(workspaceFolder, twigBasePaths, twigTemplatePaths);
-        vscode.window.showInformationMessage(JSON.stringify(components));
+        const components = await this.componentCache.getComponents(workspaceFolder, twigBasePaths, twigTemplatePaths);
+        
         const matchingComponents = components.filter(component =>
             component.name.includes(searchTerm) ||
             component.componentPath.includes(searchTerm)

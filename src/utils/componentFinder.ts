@@ -161,7 +161,7 @@ export async function findComponentFiles(document: vscode.TextDocument, position
 	// Step 6: Find existing files
 	const workspaceFolders = vscode.workspace.workspaceFolders;
 	if (!workspaceFolders) {
-		vscode.window.showInformationMessage('No workspace folders found');
+		vscode.window.showErrorMessage('No workspace folders found');
 		return undefined;
 	}
 
@@ -169,7 +169,7 @@ export async function findComponentFiles(document: vscode.TextDocument, position
 	const foundTwigFiles = findExistingFiles(twigPossiblePaths, workspaceFolders);
 
 	if (foundPhpFiles.length === 0 && foundTwigFiles.length === 0) {
-		vscode.window.showInformationMessage('No matching files found');
+		vscode.window.showErrorMessage('No matching files found');
 		return undefined;
 	}
 

@@ -9,7 +9,6 @@ export async function navigateToTwigComponent(editor: vscode.TextEditor, isModif
 
 	const result = await findComponentFiles(document, position);
 	if (!result) {
-		// vscode.window.showInformationMessage('No Twig component found at cursor position');
 		return;
 	}
 
