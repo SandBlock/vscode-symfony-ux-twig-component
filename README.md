@@ -1,22 +1,8 @@
 # VSCode Symfony UX Twig Component
 
-A Visual Studio Code extension for working with Symfony UX Twig Components. This extension provides formatting, navigation, and syntax highlighting for Twig components in Symfony UX projects.
+A Visual Studio Code extension for working with Symfony UX Twig Components. This extension provides navigation and syntax highlighting for Twig components in Symfony UX projects.
 
 ## Features
-
-### Twig Component Formatting
-
-The extension automatically formats Twig components to ensure they are properly structured. It supports both single-line and multi-line formatting styles.
-
-Example of formatted Twig component:
-
-```twig
-<twig:Content:Menu:MenuItemCard
-    routename="app_home"
-    title="Home"
-    routeparams="{{ mergedParams }}"
->
-```
 
 ### Navigation to Component Files
 
@@ -26,63 +12,126 @@ You can navigate to the PHP class and Twig template files for a component by cli
 
 The extension provides syntax highlighting for Twig components, making it easier to distinguish them from regular HTML tags.
 
+### Component Autocompletion
+
+Get intelligent autocompletion for your Twig components while typing. The extension will suggest available components based on your current input.
+
+## Installation
+
+### From VS Code Marketplace
+
+1. Open VS Code
+2. Press `Ctrl+P` (or `Cmd+P` on macOS) to open the Quick Open dialog
+3. Type `ext install SanderVerschoor.vscode-symfony-ux-twig-component` and press Enter
+
+### Manual Installation
+
+1. Download the latest `.vsix` file from the [releases page](https://github.com/SandBlock/vscode-symfony-ux-twig-component/releases)
+2. Open VS Code
+3. Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on macOS) to open the Command Palette
+4. Type "Install from VSIX" and select the downloaded file
+
+### Requirements
+
+- Visual Studio Code 1.96.0 or higher
+- A Symfony UX project with Twig components
+- PHP 8.1 or higher (for Symfony UX components)
+
 ## Configuration
 
 The extension provides the following configuration options:
 
-- `symfony-ux-twig-component.enabled`: Enable or disable the Twig component extension.
-- `symfony-ux-twig-component.formattingStyle`: The formatting style to use for Twig components. 'multiline' puts attributes on separate lines, 'singleLine' keeps everything on one line.
-- `symfony-ux-twig-component.componentPaths`: Base paths for component files. The extension will search for components in these directories.
-- `symfony-ux-twig-component.debug`: Enable debug logging for the extension.
-- `symfony-ux-twig-component.runLast`: Run the formatter last, after other formatters have run. This helps prevent other formatters from overriding the Twig component formatting.
-- `symfony-ux-twig-component.timeout`: Timeout in milliseconds to wait before running the formatter after a document change or save.
-- `symfony-ux-twig-component.maxLineLength`: Maximum line length for single-line components. Components with a single attribute will be kept on one line if the total length is less than this value (default: 120).
-- `symfony-ux-twig-component.minAttributesMultiline`: Minimum number of attributes required to format a component with multiple lines. Components with fewer attributes will be kept on one line if the total length is less than maxLineLength (default: 2).
+### Basic Configuration
 
-## Formatting
-
-The extension provides formatting for Twig components. By default, components with multiple attributes are formatted with each attribute on a separate line:
-
-```twig
-<twig:Content:Menu:MenuItemCard
-    routename="app_home"
-    title="Home"
-    routeparams="{{ mergedParams }}"
->
+```json
+{
+    "symfony-ux-twig-component.enabled": true,
+    "symfony-ux-twig-component.componentPaths": [
+        "src/Components",
+        "templates/components"
+    ]
+}
 ```
 
-Components with a single attribute or fewer than the configured minimum number of attributes (default: 2) will be kept on a single line if the total length is less than the configured maximum line length (default: 120):
+### Advanced Configuration
 
-```twig
-<twig:Content:Icon name="home">
+```json
+{
+    "symfony-ux-twig-component.enabled": true,
+    "symfony-ux-twig-component.componentPaths": [
+        {
+            "path": "src/Components",
+            "namespace": "App\\Components",
+            "templateDir": "templates/components"
+        }
+    ],
+    "symfony-ux-twig-component.excludedDirectoryNames": ["src", "templates", "components"],
+    "symfony-ux-twig-component.fallbackTemplateDirs": ["templates"],
+    "symfony-ux-twig-component.debug": false
+}
 ```
 
-## Commands
+### Configuration Options
 
-The extension provides the following commands:
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | boolean | true | Enable or disable the Twig component extension |
+| `componentPaths` | array/object | ["src/Components", "templates/components"] | Base paths for component files |
+| `excludedDirectoryNames` | array | ["src", "templates", "components"] | Directory names to exclude when parsing namespaces |
+| `fallbackTemplateDirs` | array | ["templates"] | Fallback template directories to search in |
+| `debug` | boolean | false | Enable debug logging for the extension |
 
-- `symfony-ux-twig-component.navigateToComponent`: Navigate to the component files.
-- `symfony-ux-twig-component.formatTwigComponents`: Format all Twig components in the current document.
+## Common Use Cases
 
-## Keybindings
+### 1. Component Navigation
 
-- `Cmd+Click` (macOS) or `Ctrl+Click` (Windows/Linux) on a component name to navigate to the component files.
+1. Place your cursor on a component name
+2. Hold `Cmd` (macOS) or `Ctrl` (Windows/Linux) and click
+3. Choose to open the component file, template file, or both
 
-## Requirements
+### 2. Component Autocompletion
 
-- Visual Studio Code 1.96.0 or higher
-- A Symfony UX project with Twig components
+1. Start typing `<twig:`
+2. Type the first few letters of your component name
+3. Select from the suggested components
 
-## Installation
+## Troubleshooting
 
-1. Open VS Code
-2. Press `Ctrl+P` (or `Cmd+P` on macOS) to open the Quick Open dialog
-3. Type `ext install vscode-symfony-ux-twig-component` and press Enter
+### Common Issues
+
+1. **Components not showing up in autocompletion**
+   - Check if your component paths are correctly configured
+   - Verify that your components are in the correct directories
+   - Try reloading VS Code window
+
+2. **Navigation not working**
+   - Ensure you're clicking on a valid component name
+   - Check if the component file exists in the configured paths
+   - Verify file permissions
+
+### Debug Mode
+
+Enable debug mode to get more detailed information:
+
+```json
+{
+    "symfony-ux-twig-component.debug": true
+}
+```
+
+Check the Output panel (View > Output) and select "Symfony UX Twig Component" from the dropdown to see debug messages.
 
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
 ## License
 
-This extension is licensed under the MIT License.
+This extension is licensed under the MIT License. See the [LICENSE.md](LICENSE.md) file for details.
+

@@ -3,7 +3,8 @@
   "displayName": "VSCode Symfony UX Twig Component",
   "description": "References and highlights Twig components for Symfony UX",
   "publisher": "SanderVerschoor",
-  "version": "0.0.7",
+  "icon": "assets/logo.png",
+  "version": "1.0.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/SandBlock/vscode-symfony-ux-twig-component.git"
