@@ -1,10 +1,10 @@
 {
   "name": "vscode-symfony-ux-twig-component",
-  "displayName": "VSCode Symfony UX Twig Component",
+  "displayName": "Symfony UX Twig Component",
   "description": "References and highlights Twig components for Symfony UX",
   "publisher": "SanderVerschoor",
   "icon": "assets/logo.png",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "repository": {
     "type": "git",
     "url": "https://github.com/SandBlock/vscode-symfony-ux-twig-component.git"

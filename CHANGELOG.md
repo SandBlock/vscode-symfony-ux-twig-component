@@ -4,6 +4,12 @@ All notable changes to the "vscode-symfony-ux-twig-component" extension will be 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [1.0.1] - 2024-03-26
+
+- Updated extension display name to "Symfony UX Twig Component" for better clarity
+
+## [1.0.0] - 2024-03-26
+
 ## [0.0.6] - 2024-11-14
 
 - Significantly improved template file detection for complex directory structures
